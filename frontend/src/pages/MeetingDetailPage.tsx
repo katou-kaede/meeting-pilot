@@ -5,6 +5,7 @@ import { formatDateTime } from "../utils/common";
 import { getStatusLabel, getStatusStyle } from "../utils/meetingStatus";
 import AgendaSidebar from "../components/AgendaSidebar";
 import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
 import {
   Play,
   ArrowLeft,
@@ -132,7 +133,7 @@ export default function MeetingDetailPage() {
   const selectedAgenda = agendas[selectedAgendaIndex] ?? null;
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading />;
   }
 
   return (

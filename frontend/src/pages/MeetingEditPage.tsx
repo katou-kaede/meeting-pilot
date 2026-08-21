@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import type { AgendaForm, MeetingDetail } from "../types/meeting";
 import ErrorMessage from "../components/ErrorMessage";
 import MeetingForm from "../components/MeetingForm";
+import Loading from "../components/Loading";
 import { ArrowLeft } from "lucide-react";
 
 export default function MeetingEditPage() {
@@ -152,7 +153,7 @@ export default function MeetingEditPage() {
   }
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading />;
   }
 
   return (

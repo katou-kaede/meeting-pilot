@@ -66,6 +66,29 @@ export default function MeetingForm({
 		setAgendas(updated);
 	};
 
+  // agendaの並び替え
+  const moveAgenda = (
+    index: number,
+    direction: "up" | "down"
+  ) => {
+    const targetIndex =
+      direction === "up" ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= agendas.length) {
+      return;
+    }
+
+    const updated = [...agendas];
+
+    [updated[index], updated[targetIndex]] = [
+      updated[targetIndex],
+      updated[index],
+    ];
+
+    setAgendas(updated);
+    setSelectedAgendaIndex(targetIndex);
+  };
+
 	return (
 		<>
 			{/* 会議作成フォーム */}
@@ -163,7 +186,9 @@ export default function MeetingForm({
 						<AgendaSidebar
 							agendas={agendas}
 							selectedIndex={selectedAgendaIndex}
+							meetingPlannedMinutes={plannedMinutes}
 							onSelect={setSelectedAgendaIndex}
+              onMove={moveAgenda}
 						/>
 
 						<button

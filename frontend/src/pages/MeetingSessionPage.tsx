@@ -4,6 +4,7 @@ import AgendaSidebar from "../components/AgendaSidebar";
 import type { MeetingSessionDetail } from "../types/meeting";
 import ErrorMessage from "../components/ErrorMessage";
 import CircularTimer from "../components/CircularTimer";
+import Loading from "../components/Loading";
 import { ArrowLeft } from "lucide-react";
 
 export default function MeetingSessionPage() {
@@ -301,7 +302,7 @@ export default function MeetingSessionPage() {
       : 0;
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading />;
   }
 
 

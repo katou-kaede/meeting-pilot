@@ -4,6 +4,7 @@ import type { Meeting } from "../types/meeting";
 import { formatDateTime } from "../utils/common";
 import { getStatusLabel, getStatusStyle } from "../utils/meetingStatus";
 import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
 
 
 export default function MeetingListPage() {
@@ -40,7 +41,7 @@ export default function MeetingListPage() {
   }, [])
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading />;
   }
 
 
