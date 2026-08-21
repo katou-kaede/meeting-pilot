@@ -1,0 +1,276 @@
+import { useEffect, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import type { MeetingDetail } from "../types/meeting";
+import { formatDateTime } from "../utils/common";
+
+export default function MeetingDetailPage() {
+  const { id } = useParams();
+
+  const [meeting, setMeeting] = useState<MeetingDetail | null>(null);
+
+  const navigate = useNavigate();
+
+  const [openIndexes, setOpenIndexes] = useState<number[]>([0]);
+
+  useEffect(() => {
+    const fetchMeeting = async () => {
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}`
+      );
+
+      const data = await response.json();
+
+      setMeeting(data);
+
+      if (!response.ok) {
+        console.error(data.error);
+        return;
+      }
+    };
+
+    fetchMeeting();
+  }, [id]);
+
+  // 削除処理
+  const handleDelete = async () => {
+
+    if (!confirm("削除しますか？")) {
+      return;
+    }
+
+    const response = await fetch(
+      `http://localhost:8080/api/meetings/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    if (response.ok) {
+      navigate("/");
+      return
+    }
+
+    const error = await response.json();
+    console.log(error)
+  };
+  
+  if (!meeting) {
+    return <div>Loading...</div>;
+  }
+  
+  // Agendaの合計時間の計算
+  const totalMinutes = (meeting.agendas ?? []).reduce(
+    (sum, agenda) => sum + agenda.planned_minutes,
+    0
+  );
+
+  // アジェンダカード開閉
+  const toggleAgenda = (index: number) => {
+    setOpenIndexes((prev) =>
+      prev.includes(index)
+        ? prev.filter((i) => i !== index)
+        : [...prev, index]
+    );
+  };
+
+  return (
+    <div className="bg-slate-50 min-h-screen">
+      <div className="max-w-5xl mx-auto p-8">
+
+        <Link
+          to="/"
+          className="text-slate-500 hover:text-slate-900"
+        >
+          ← 会議一覧へ戻る
+        </Link>
+
+        {/* タイトルエリア */}
+        <div className="flex justify-between items-start mt-6">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              {meeting.title}
+            </h1>
+
+            <p className="mt-2 text-slate-500">
+              {meeting.description}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Link
+              to={`/meetings/${meeting.id}/edit`}
+              className="px-4 py-2 rounded-xl border border-slate-300"
+            >
+              編集
+            </Link>
+
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 rounded-xl bg-red-600 text-white cursor-pointer"
+            >
+              削除
+            </button>
+          </div>
+
+        </div>
+
+        {/* 会議情報カード */}
+        <div className="mt-8 bg-white border border-slate-200 rounded-2xl p-6">
+
+          <h2 className="font-semibold text-lg mb-4">会議情報</h2>
+
+          <div className="grid grid-cols-2 gap-6">
+
+            <div>
+              <p className="text-sm text-slate-500">会議相手</p>
+
+              <p className="mt-1">{meeting.target_name}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-slate-500">開始日時</p>
+
+              <p className="mt-1">
+                {formatDateTime(meeting.scheduled_start_at)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-slate-500">予定時間</p>
+
+              <p className="mt-1">{meeting.planned_minutes}分</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-slate-500">状態</p>
+
+              <span className="inline-block mt-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-sm">
+                {meeting.status}
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* 会議後入力項目 */}
+        <div className="mt-6 grid md:grid-cols-2 gap-6">
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-6">
+            <h2 className="font-semibold text-lg mb-4">
+              決定事項
+            </h2>
+
+            <p className="whitespace-pre-wrap text-slate-700">
+              {meeting.decisions || "未入力"}
+            </p>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-6">
+            <h2 className="font-semibold text-lg mb-4">
+              TODO
+            </h2>
+
+            <p className="whitespace-pre-wrap text-slate-700">
+              {meeting.todo || "未入力"}
+            </p>
+          </div>
+
+        </div>
+
+        {/* アジェンダカード */}
+        <div className="mt-6 bg-white border border-slate-200 rounded-2xl p-6">
+
+          <h2 className="font-semibold text-lg mb-4">アジェンダ</h2>
+
+          <div className="space-y-3">
+
+            {(meeting.agendas ?? []).map((agenda, index) => (
+              <div
+                key={agenda.id}
+                className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm"
+              >
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => toggleAgenda(index)}
+                >
+                  <div>
+                    <h3 className="font-semibold">
+                      {agenda.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <span className="text-slate-500">
+                      {agenda.planned_minutes}分
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleAgenda(index)}
+                      className="text-slate-500"
+                    >
+                      {openIndexes.includes(index) ? "⌄" : "›"}
+                    </button>
+                  </div>
+                </div>       
+
+                {openIndexes.includes(index) && (
+                  <div className="mt-4 border-t border-slate-200 pt-4">
+                    {agenda.purpose && (
+                      <div className="mb-3">
+                        <p className="text-sm text-slate-500">目的</p>
+
+                        <p>{agenda.purpose}</p>
+                      </div>
+                    )}
+
+                    {agenda.discussion_points && (
+                      <div className="mb-3">
+                        <p className="text-sm text-slate-500">議論ポイント</p>
+
+                        <p>{agenda.discussion_points}</p>
+                      </div>
+                    )}
+
+                    {agenda.key_messages && (
+                      <div className="mb-3">
+                        <p className="text-sm text-slate-500">伝えたいこと</p>
+
+                        <p>{agenda.key_messages}</p>
+                      </div>
+                    )}
+
+                    {agenda.questions && (
+                      <div className="mb-3">
+                        <p className="text-sm text-slate-500">質問</p>
+
+                        <p>{agenda.questions}</p>
+                      </div>
+                    )}
+
+                    {agenda.memo && (
+                      <div>
+                        <p className="text-sm text-slate-500">メモ</p>
+
+                        <p>{agenda.memo}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between font-semibold">
+            <span>アジェンダ合計</span>
+            <span>{totalMinutes}分</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}

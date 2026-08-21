@@ -1,0 +1,257 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import type { AgendaForm, MeetingDetail } from "../types/meeting";
+
+export default function MeetingEditPage() {
+  const { id } = useParams();
+  // エラーメッセージ
+  const [errorMessage, setErrorMessage] = useState("");
+
+  // Meetings
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [targetName, setTargetName] = useState("");
+  const [scheduledStartAt, setScheduledStartAt] = useState("");
+  const [plannedMinutes, setPlannedMinutes] = useState("60");
+
+  // Agendas
+  const [agendas, setAgendas] = useState<AgendaForm[]>([]);
+
+  const navigate = useNavigate();
+
+  // データ取得
+  useEffect(() => {
+    const fetchMeeting = async () => {
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}`
+      );
+
+      const data: MeetingDetail = await response.json();
+
+      setTitle(data.title);
+      setDescription(data.description);
+      setTargetName(data.target_name);
+      // datetime-localに合う形式に変換
+      setScheduledStartAt(
+        data.scheduled_start_at
+          ? data.scheduled_start_at.slice(0, 16)
+          : ""
+      );
+      setPlannedMinutes(String(data.planned_minutes));
+
+      setAgendas(
+        (data.agendas ?? []).map((agenda) => ({
+          id: agenda.id,
+          title: agenda.title,
+          purpose: agenda.purpose,
+          discussion_points: agenda.discussion_points,
+          questions: agenda.questions,
+          memo: agenda.memo,
+          planned_minutes: String(
+            agenda.planned_minutes
+          ),
+        }))
+      );
+    };
+
+    fetchMeeting();
+  }, [id]);
+
+  // 更新処理
+  const handleSubmit = async () => {
+    console.log(
+      JSON.stringify(
+        {
+          title,
+          target_name: targetName,
+          description,
+          scheduled_start_at: scheduledStartAt,
+          planned_minutes: plannedMinutes,
+          agendas,
+        },
+        null,
+        2
+      )
+    );
+
+    const response = await fetch(`http://localhost:8080/api/meetings/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        title,
+        description,
+        target_name: targetName,
+        scheduled_start_at: scheduledStartAt,
+        planned_minutes: Number(plannedMinutes),
+
+        agendas: agendas.map((agenda) => ({
+          id: agenda.id,
+          title: agenda.title,
+          purpose: agenda.purpose,
+          discussion_points: agenda.discussion_points,
+          questions: agenda.questions,
+          memo: agenda.memo,
+          planned_minutes: Number(agenda.planned_minutes),
+        }))
+      })
+    })
+
+    if (response.ok) {
+      navigate("/");
+      return
+    }
+
+    const error = await response.json();
+    setErrorMessage(error.error);
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto p-8">
+      <h1 className="text-2xl font-bold mb-6">
+        会議編集
+      </h1>
+
+      {/* エラーメッセージ */}
+      {errorMessage && (
+        <p className="text-red-600">
+          {errorMessage}
+        </p>
+      )}
+
+      <div className="space-y-4">
+        {/* 会議作成フォーム */}
+        <div>
+          <label>会議名</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label>会議詳細</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label>会議相手</label>
+          <input
+            type="text"
+            value={targetName}
+            onChange={(e) => setTargetName(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label>開始日時</label>
+          <input
+            type="datetime-local"
+            value={scheduledStartAt}
+            onChange={(e) => setScheduledStartAt(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label>予定時間(分)</label>
+          <input
+            type="number"
+            value={plannedMinutes}
+            onChange={(e) =>
+              setPlannedMinutes(e.target.value)
+            }
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        {/* アジェンダ作成フォーム */}
+        <div>
+          <label>アジェンダ</label>
+
+          <div className="space-y-2 mt-2">
+            {agendas.map((agenda, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="text"
+                  value={agenda.title}
+                  placeholder={`議題${index + 1}`}
+                  onChange={(e) => {
+                    const updated = [...agendas];
+                    updated[index].title = e.target.value;
+                    setAgendas(updated);
+                  }}
+                  className="w-full border rounded p-2"
+                />
+
+                <input
+                  type="number"
+                  value={agenda.planned_minutes}
+                  placeholder={"分"}
+                  onChange={(e) => {
+                    const updated = [...agendas];
+                    updated[index].planned_minutes = e.target.value;
+                    setAgendas(updated);
+                  }}
+                  className="w-full border rounded p-2"
+                />
+
+                {agendas.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAgendas(
+                        agendas.filter((_, i) => i !== index)
+                      );
+                    }}
+                    className="px-3 py-2 border rounded"
+                  >
+                    削除
+                  </button>
+                )}
+              </div>
+            ))}
+
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setAgendas([
+                ...agendas,
+                { 
+                  title: "",
+                  purpose: "",
+                  discussion_points: "",
+                  questions: "",
+                  memo: "",
+                  planned_minutes: "10",
+                },
+              ])
+            }
+            className="mt-2 text-blue-600"
+          >
+            + 議題追加
+          </button>
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          className="bg-slate-900 text-white px-4 py-2 rounded"
+        >
+          保存
+        </button>
+
+      </div>
+    </div>
+  );
+}

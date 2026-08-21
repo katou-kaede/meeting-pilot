@@ -1,0 +1,41 @@
+services:
+
+  db:
+    image: postgres:17
+
+    container_name: meeting-pilot-db
+
+    environment:
+      POSTGRES_DB: meeting_pilot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+
+    volumes:
+      - ./migrations:/migrations:ro
+
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://postgres:postgres@db:5432/meeting_pilot?sslmode=disable"
+      - "up"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

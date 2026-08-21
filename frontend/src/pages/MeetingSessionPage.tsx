@@ -1,0 +1,568 @@
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import AgendaSidebar from "../components/AgendaSidebar";
+import type { MeetingSessionDetail } from "../types/meeting";
+import ErrorMessage from "../components/ErrorMessage";
+import CircularTimer from "../components/CircularTimer";
+import { ArrowLeft } from "lucide-react";
+
+export default function MeetingSessionPage() {
+  const { id } = useParams();
+
+  const [meeting, setMeeting] = useState<MeetingSessionDetail | null>(null);
+
+  const [selectedAgendaIndex, setSelectedAgendaIndex] = useState(0);
+  const agendas = meeting?.agendas ?? [];
+
+  const [currentAgendaIndex, setCurrentAgendaIndex] = useState(0);
+
+  const selectedAgenda = agendas[selectedAgendaIndex] ?? null;
+  const currentAgenda = agendas[currentAgendaIndex] ?? null;
+
+  // エラーメッセージ
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const [saving, setSaving] = useState(false);
+  
+  const navigate = useNavigate();
+
+  // タイマー
+  const [agendaRemainingSeconds, setAgendaRemainingSeconds] = useState<number[]>([]);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  // 会議情報の取得
+  useEffect(() => {
+    const fetchMeeting = async () => {
+      try {
+        setErrorMessage("");
+
+        const response = await fetch(
+          `http://localhost:8080/api/meetings/${id}/session`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setErrorMessage(data.error);
+          return;
+        }
+
+        const meetingData = data as MeetingSessionDetail;
+        setMeeting(meetingData);
+
+        // DBの現在議題からIndexを復元
+        const currentIndex = meetingData.agendas.findIndex(
+          (agenda) => agenda.id === meetingData.current_agenda_id
+        );
+
+        const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+
+        setCurrentAgendaIndex(safeCurrentIndex);
+        setSelectedAgendaIndex(safeCurrentIndex);
+
+        // 議題ごとの残り時間を初期化
+        const now = Date.now();
+
+        const initialRemainingSeconds = meetingData.agendas.map((agenda) => {
+          let elapsedSeconds = agenda.elapsed_seconds;
+
+          if (
+            agenda.id === meetingData.current_agenda_id &&
+            agenda.actual_start_at
+          ) {
+            elapsedSeconds += Math.floor(
+              (now - new Date(agenda.actual_start_at).getTime()) / 1000
+            );
+          }
+
+          return agenda.planned_minutes * 60 - elapsedSeconds
+        });
+
+        setAgendaRemainingSeconds(initialRemainingSeconds);
+
+      } catch (error) {
+        console.error(error);
+        setErrorMessage("会議情報の取得に失敗しました");
+
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMeeting();
+  }, [id]);
+
+  // 現在進行中の議題の残り時間を減らす
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setAgendaRemainingSeconds((prev) =>
+        prev.map((seconds, index) =>
+          index === currentAgendaIndex
+            ? seconds - 1
+            : seconds
+        )
+      );
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [currentAgendaIndex]);
+
+  // 1秒ごとに現在時刻を更新
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, []);
+
+  // タイマーの表示形式
+  const formatTimer = (seconds: number) => {
+    const absoluteSeconds = Math.abs(seconds);
+    const minutes = Math.floor(absoluteSeconds / 60);
+    const remainingSeconds = absoluteSeconds % 60;
+
+    return `${String(minutes).padStart(2, "0")}:${String(
+      remainingSeconds
+    ).padStart(2, "0")}`;
+  };
+
+  // 会議終了処理
+  const handleComplete = async () => {
+    if (!meeting) return;
+
+    if (!confirm("会議を終了しますか？")) {
+      return;
+    }
+
+    try {
+      setErrorMessage("");
+      setSaving(true);
+
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}/complete`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            decisions: meeting.decisions,
+            todo: meeting.todo,
+            agendas: (meeting.agendas ?? []).map((agenda) => ({
+              id: agenda.id,
+              memo: agenda.memo,
+            })),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        setErrorMessage(error.error);
+        return;
+      }
+    
+      navigate(`/meetings/${id}`);
+
+    } catch (error) {
+      setErrorMessage("会議の終了に失敗しました");
+      console.error(error);
+
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 議題の切り替え処理
+  const changeCurrentAgenda = async (targetIndex: number) => {
+    const targetAgenda = agendas[targetIndex];
+
+    if (!targetAgenda) return;
+
+    try {
+      setErrorMessage("");
+
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}/current-agenda`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            agenda_id: targetAgenda.id,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        setErrorMessage(error.error);
+        return;
+      }
+
+      setCurrentAgendaIndex(targetIndex);
+      setSelectedAgendaIndex(targetIndex);
+
+      // フロント側の開始時刻も更新
+      setMeeting((prev) => {
+        if (!prev) return prev;
+
+        return {
+          ...prev,
+          current_agenda_id: targetAgenda.id,
+          agendas: prev.agendas.map((agenda) =>
+            agenda.id === targetAgenda.id
+              ? {
+                  ...agenda,
+                  actual_start_at: new Date().toISOString(),
+                  actual_end_at: null,
+                }
+              : agenda
+          ),
+        };
+      });
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("議題の切り替えに失敗しました");
+    }
+  };
+
+  // 議題を進める処理
+  const handleNextAgenda = async () => {
+    if (currentAgendaIndex >= agendas.length - 1) {
+      return;
+    }
+
+    await changeCurrentAgenda(currentAgendaIndex + 1);
+  };
+
+  // 議題を戻す処理
+  const handlePreviousAgenda = async () => {
+    if (currentAgendaIndex <= 0) {
+      return;
+    }
+
+    await changeCurrentAgenda(currentAgendaIndex - 1);
+  };
+
+  // 会議全体の予定時間
+  const meetingPlannedSeconds = (meeting?.planned_minutes ?? 0) * 60;
+
+  // 会議全体の経過時間計算
+  const meetingElapsedSeconds = meeting?.actual_start_at
+    ? Math.floor(
+        (currentTime - new Date(meeting.actual_start_at).getTime()) / 1000
+      )
+    : 0;
+
+  // 会議全体の残り時間計算
+  const meetingRemainingSeconds = meetingPlannedSeconds - meetingElapsedSeconds;
+
+  // 現在議題の残り時間
+  const currentAgendaRemainingSeconds = agendaRemainingSeconds[currentAgendaIndex] ?? 0;
+
+  // 現在議題の経過時間（秒）
+  const currentAgendaElapsedSeconds =
+    (currentAgenda?.planned_minutes ?? 0) * 60 -
+    currentAgendaRemainingSeconds;
+
+  // 現在議題の予定時間
+  const currentAgendaPlannedSeconds = (currentAgenda?.planned_minutes ?? 0) * 60;
+
+  // 会議全体時間の進捗率（タイマー表示用）
+  const meetingProgress =
+  meetingPlannedSeconds > 0
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          (meetingElapsedSeconds / meetingPlannedSeconds) * 100
+        )
+      )
+    : 0;
+
+  // 現在議題時間の進捗率（タイマー表示用）
+  const currentAgendaProgress =
+    currentAgendaPlannedSeconds > 0
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            (currentAgendaElapsedSeconds /
+              currentAgendaPlannedSeconds) *
+              100
+          )
+        )
+      : 0;
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-[1600px] p-6 lg:p-8">
+
+        <Link
+          to={`/meetings/${id}`}
+          className="inline-flex items-center text-slate-500 hover:text-slate-900"
+        >
+          <ArrowLeft size={18} /> 会議詳細へ戻る
+        </Link>
+
+        {/* エラーメッセージ */}
+        {errorMessage && (
+          <ErrorMessage message={errorMessage} />
+        )}
+
+        {meeting && (
+        <>
+        {/* タイトルエリア */}
+        <div className="mt-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              {meeting.title}
+            </h1>
+
+            <p className="mt-2 text-slate-500">
+              {meeting.description}
+            </p>
+          </div>
+        </div>
+
+
+        {/* タイマー */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+
+          {/* 全体タイマー */}
+          <div className="h-full rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="h-full flex items-center gap-6">
+              {/* 円形タイマー */}
+              <CircularTimer
+                remainingSeconds={meetingRemainingSeconds}
+                progress={meetingProgress}
+                color="#3b82f6"
+                label="全体残り"
+                overtimeLabel="全体超過"
+                formatTimer={formatTimer}
+              />             
+
+              {/* 全体タイマー情報 */}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-slate-500">
+                  {meeting.planned_minutes}分の全体タイマー
+                </p>
+
+                <p className="mt-1 font-medium text-slate-700">
+                  経過 {formatTimer(meetingElapsedSeconds)} /{" "}
+                  {formatTimer(meetingPlannedSeconds)}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleComplete}
+                    disabled={saving}
+                    className="rounded-xl bg-emerald-600 px-6 py-2 font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {saving ? "終了中..." : "会議終了"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>                
+
+          {/* 議題タイマー */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-6">
+
+              {/* 円形タイマー */}
+              <CircularTimer
+                remainingSeconds={currentAgendaRemainingSeconds}
+                progress={currentAgendaProgress}
+                color="#8b5cf6"
+                label="議題残り"
+                overtimeLabel="議題超過"
+                formatTimer={formatTimer}
+              />
+
+              {/* 議題タイマー情報 */}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-slate-500">
+                  現在の議題
+                </p>
+
+                <h2 className="mt-1 truncate text-2xl font-bold text-slate-900">
+                  {currentAgenda?.title || "議題なし"}
+                </h2>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  経過 {formatTimer(currentAgendaElapsedSeconds)} / {" "} 
+                  {formatTimer(currentAgendaPlannedSeconds)}
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePreviousAgenda}
+                    disabled={currentAgendaIndex === 0}
+                    className="rounded-xl border border-slate-300 px-4 py-2 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  >
+                    ← 議題を戻す
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextAgenda}
+                    disabled={
+                      agendas.length === 0 ||
+                      currentAgendaIndex >= agendas.length - 1
+                    }
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  >
+                    議題を進める →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+          
+        {/* アジェンダ */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+
+          <AgendaSidebar
+            agendas={agendas}
+            selectedIndex={selectedAgendaIndex}
+            currentIndex={currentAgendaIndex}
+            onSelect={setSelectedAgendaIndex}
+          />
+
+          <main className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            {selectedAgenda ? (
+                <>
+                  <div className="border-b border-slate-200 pb-4">
+                    <p className="text-sm font-medium text-slate-500">
+                      議題 {selectedAgendaIndex + 1} / {agendas.length}
+                    </p>
+
+                    <div className="mt-2 flex items-start justify-between gap-6">
+                      <h2 className="text-2xl font-bold text-slate-900">
+                        {selectedAgenda.title}
+                      </h2>
+
+                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                        {selectedAgenda.planned_minutes}分
+                      </span>
+                    </div>
+                  </div>
+
+                  <h3 className="mt-4 font-semibold text-slate-500">
+                    目的：{selectedAgenda.purpose || ""}
+                  </h3>
+
+                  <div className="mt-5 grid gap-5 lg:grid-cols-2 items-stretch">
+                    <section className="h-full rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                      <h3 className="mb-2 font-semibold text-slate-900">
+                        議論ポイント
+                      </h3>
+
+                      <p className="whitespace-pre-wrap text-slate-700">
+                        {selectedAgenda.discussion_points || ""}
+                      </p>
+                    </section>
+
+                    <section className="h-full rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                      <h3 className="mb-2 font-semibold text-slate-900">
+                        質問事項
+                      </h3>
+
+                      <p className="whitespace-pre-wrap text-slate-700">
+                        {selectedAgenda.questions || ""}
+                      </p>
+                    </section>
+                  </div>
+
+                  <section className="mt-5 rounded-2xl border border-amber-100 bg-amber-50/70 p-5">
+                    <h3 className="mb-2 font-semibold text-amber-800">
+                      メモ
+                    </h3>
+
+                    <textarea 
+                      value={selectedAgenda.memo || ""}
+                      rows={6}
+                      onChange={(e) => {
+                        const updated = [...agendas];
+                        updated[selectedAgendaIndex] = {
+                          ...updated[selectedAgendaIndex],
+                          memo: e.target.value,
+                        };
+
+                        setMeeting({...meeting, agendas: updated});
+                      }}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                    />
+                  </section>
+                </>
+              ) : (
+                <div className="flex min-h-80 items-center justify-center text-slate-500">
+                  アジェンダがありません
+                </div>
+              )}
+          </main>
+        </div>
+
+        {/* 会議後入力項目 */}
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-6 shadow-sm backdrop-blur-xl">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-600">
+              Meeting Result
+            </p>
+
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">
+              決定事項
+            </h2>
+
+            <textarea 
+              value={meeting.decisions || ""}
+              rows={6}
+              onChange={(e) => {
+                setMeeting({...meeting, decisions: e.target.value});
+              }}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+            />
+          </div>
+
+          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-6 shadow-sm backdrop-blur-xl">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-600">
+              Next Action
+            </p>
+
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">
+              TODO
+            </h2>
+
+            <textarea 
+              value={meeting.todo || ""}
+              rows={6}
+              onChange={(e) => {
+                setMeeting({...meeting, todo: e.target.value});
+              }}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+            />
+          </div>
+        </div>
+
+        </>
+        )}
+
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MeetingPilot</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+    body {
+        background: #f5f7fb;
+    }
+
+    .timer-ring {
+        width: 120px;
+        height: 120px;
+        border-radius: 9999px;
+        border: 8px solid #e2e8f0;
+        position: relative;
+    }
+
+    .timer-dot-blue {
+        width: 12px;
+        height: 12px;
+        background: #3b82f6;
+        border-radius: 9999px;
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .timer-dot-purple {
+        width: 12px;
+        height: 12px;
+        background: #8b5cf6;
+        border-radius: 9999px;
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+</style>
+
+</head>
+
+<body>
+
+<div class="p-6 max-w-[1600px] mx-auto">
+
+    <!-- HEADER -->
+
+    <div class="mb-6">
+        <div class="text-sm text-blue-600 font-medium">
+            サンプル会議
+        </div>
+
+        <h1 class="text-3xl font-bold text-slate-800">
+            MeetingPilot
+        </h1>
+    </div>
+
+    <!-- TIMER AREA -->
+
+    <div class="grid grid-cols-2 gap-6 mb-6">
+
+        <!-- 全体 -->
+
+        <div class="bg-white rounded-3xl border border-slate-200 p-6">
+
+            <div class="flex items-center justify-between">
+
+                <div class="flex items-center gap-6">
+
+                    <div class="timer-ring flex items-center justify-center">
+                        <div class="timer-dot-blue"></div>
+
+                        <div class="text-center">
+                            <div class="text-xs text-slate-500">
+                                全体残り
+                            </div>
+
+                            <div
+                                id="meetingTimer"
+                                class="text-3xl font-bold"
+                            >
+                                59:37
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+
+                        <div class="text-slate-500 text-sm">
+                            1時間の全体タイマー
+                        </div>
+
+                        <div class="font-medium mt-1">
+                            経過 00:23 / 60:00
+                        </div>
+
+                        <div class="flex gap-2 mt-4">
+
+                            <button
+                                class="bg-blue-600 text-white px-4 py-2 rounded-xl">
+                                一時停止
+                            </button>
+
+                            <button
+                                class="border border-slate-300 px-4 py-2 rounded-xl">
+                                リセット
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 議題 -->
+
+        <div class="bg-white rounded-3xl border border-slate-200 p-6">
+
+            <div class="flex items-center gap-6">
+
+                <div class="timer-ring flex items-center justify-center">
+                    <div class="timer-dot-purple"></div>
+
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="w-6 h-6 text-slate-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor">
+
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 8v4l3 3"/>
+
+                    </svg>
+                </div>
+
+                <div>
+
+                    <div class="text-sm text-slate-500">
+                        現在の議題
+                    </div>
+
+                    <h2 class="text-3xl font-bold mt-1">
+                        リスク・費用・評価方法
+                    </h2>
+
+                    <div class="text-4xl font-bold mt-3">
+                        09:52
+                    </div>
+
+                    <div class="text-sm text-slate-500">
+                        目安10分 / 経過00:08
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- MAIN -->
+
+    <div class="grid grid-cols-[280px_1fr] gap-6">
+
+        <!-- AGENDA -->
+
+        <div class="bg-white rounded-3xl border border-slate-200 p-5">
+
+            <div class="flex justify-between items-center mb-6">
+
+                <h3 class="font-bold">
+                    進行アジェンダ
+                </h3>
+
+                <span
+                    class="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-sm">
+                    3 / 7
+                </span>
+
+            </div>
+
+            <div class="space-y-3">
+
+                <div class="flex items-center gap-3 text-green-600">
+                    ✓ ゴール確認
+                </div>
+
+                <div class="flex items-center gap-3 text-green-600">
+                    ✓ 課題ヒアリング
+                </div>
+
+                <div class="flex items-center gap-3">
+                    ○ 位置づけ説明
+                </div>
+
+                <div class="flex items-center gap-3 text-green-600">
+                    ✓ ユースケース
+                </div>
+
+                <!-- CURRENT -->
+
+                <div
+                    class="bg-slate-900 text-white rounded-2xl p-4">
+
+                    <div class="font-semibold">
+                        リスク・費用・評価方法
+                    </div>
+
+                    <div class="text-xs text-slate-300 mt-1">
+                        目安10分
+                    </div>
+
+                </div>
+
+                <div class="flex items-center gap-3">
+                    ○ パイロット合意
+                </div>
+
+                <div class="flex items-center gap-3">
+                    ○ まとめ
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- CONTENT -->
+
+        <div>
+
+            <div
+                class="h-2 bg-rose-500 rounded-full mb-4">
+            </div>
+
+            <div
+                class="bg-white rounded-3xl border border-slate-200 p-8">
+
+                <div class="text-sm text-slate-500">
+                    議題 5/7 ・ 目安10分
+                </div>
+
+                <h1 class="text-4xl font-bold mt-2">
+                    リスク・費用・評価方法
+                </h1>
+
+                <p class="text-slate-500 mt-3 mb-8">
+                    狙い：経営判断上の不安を提示し、
+                    開始条件を整理する
+                </p>
+
+                <!-- FIRST -->
+
+                <div
+                    class="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+
+                    <div
+                        class="text-sm font-semibold text-blue-700 mb-2">
+                        最初のひとこと
+                    </div>
+
+                    <div class="text-lg">
+                        「効果だけでなく品質、情報管理、費用、
+                        評価方法も先に確認しておきたいです」
+                    </div>
+
+                </div>
+
+                <!-- TWO COLUMN -->
+
+                <div class="grid grid-cols-2 gap-5 mb-6">
+
+                    <div
+                        class="bg-slate-50 border rounded-2xl p-5">
+
+                        <h3
+                            class="font-semibold mb-4">
+                            💡 キーメッセージ
+                        </h3>
+
+                        <ul class="space-y-2">
+                            <li>・品質確認</li>
+                            <li>・情報管理の整理</li>
+                            <li>・費用の確認</li>
+                            <li>・評価指標の合意</li>
+                        </ul>
+
+                    </div>
+
+                    <div
+                        class="bg-slate-50 border rounded-2xl p-5">
+
+                        <h3
+                            class="font-semibold mb-4">
+                            💬 相手に聞くこと
+                        </h3>
+
+                        <ul class="space-y-2">
+                            <li>開始前承認者は？</li>
+                            <li>成果指標は？</li>
+                            <li>利用制限は？</li>
+                        </ul>
+
+                    </div>
+
+                </div>
+
+                <!-- WARNING -->
+
+                <div
+                    class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+
+                    ⚠ 契約条件やデータ取扱いは即答しない
+
+                </div>
+
+                <!-- FOOTER -->
+
+                <div class="flex justify-between mt-8">
+
+                    <button
+                        class="border px-6 py-2 rounded-xl">
+                        前の議題
+                    </button>
+
+                    <button
+                        class="bg-slate-900 text-white px-6 py-2 rounded-xl">
+                        次の議題
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let sec = 59 * 60 + 37;
+
+setInterval(() => {
+
+    if (sec <= 0) return;
+
+    sec--;
+
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+
+    document.getElementById("meetingTimer").innerText =
+        `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+
+}, 1000);
+
+</script>
+
+</body>
+</html>
