@@ -106,16 +106,18 @@ type CompleteAgendaRequest struct {
 // 会議中：詳細
 // ============================================
 type MeetingSessionDetail struct {
-	ID              int64                 `json:"id"`
-	Title           string                `json:"title"`
-	Description     string                `json:"description"`
-	PlannedMinutes  int                   `json:"planned_minutes"`
-	Status          string                `json:"status"`
-	ActualStartAt   *time.Time            `json:"actual_start_at"`
-	CurrentAgendaID *int64                `json:"current_agenda_id"`
-	Decisions       string                `json:"decisions"`
-	Todo            string                `json:"todo"`
-	Agendas         []AgendaSessionDetail `json:"agendas"`
+	ID                 int64                 `json:"id"`
+	Title              string                `json:"title"`
+	Description        string                `json:"description"`
+	PlannedMinutes     int                   `json:"planned_minutes"`
+	Status             string                `json:"status"`
+	ActualStartAt      *time.Time            `json:"actual_start_at"`
+	PausedAt	       *time.Time            `json:"paused_at"`
+	TotalPausedSeconds int                   `json:"total_paused_seconds"`
+	CurrentAgendaID    *int64                `json:"current_agenda_id"`
+	Decisions          string                `json:"decisions"`
+	Todo               string                `json:"todo"`
+	Agendas            []AgendaSessionDetail `json:"agendas"`
 }
 
 type AgendaSessionDetail struct {

@@ -358,3 +358,115 @@ func SaveMeetingSession(
 		return c.NoContent(http.StatusNoContent)
 	}
 }
+
+// ============================================
+// 会議中：一時停止
+// ============================================
+func PauseMeeting(
+	db *sql.DB,
+	hub *wsHub.Hub,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(
+			c.Param("id"),
+			10,
+			64,
+		)
+		if err != nil {
+			log.Printf(
+				"PauseMeeting invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
+
+			return c.JSON(
+				http.StatusBadRequest,
+				map[string]string{
+					"error": "会議IDが不正です",
+				},
+			)
+		}
+
+		if err := repository.PauseMeeting(db, id); err != nil {
+			log.Printf(
+				"PauseMeeting failed id=%d err=%v",
+				id,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusInternalServerError,
+				map[string]string{
+					"error": "会議の一時停止に失敗しました",
+				},
+			)
+		}
+
+		// 同じ会議を開いている画面へ通知
+		hub.Broadcast(
+			id,
+			wsHub.Event{
+				Type:      "meeting_paused",
+				MeetingID: id,
+			},
+		)
+
+		return c.NoContent(http.StatusNoContent)
+	}
+}
+
+// ============================================
+// 会議中：再開
+// ============================================
+func ResumeMeeting(
+	db *sql.DB,
+	hub *wsHub.Hub,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(
+			c.Param("id"),
+			10,
+			64,
+		)
+		if err != nil {
+			log.Printf(
+				"ResumeMeeting invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
+
+			return c.JSON(
+				http.StatusBadRequest,
+				map[string]string{
+					"error": "会議IDが不正です",
+				},
+			)
+		}
+
+		if err := repository.ResumeMeeting(db, id); err != nil {
+			log.Printf(
+				"ResumeMeeting failed id=%d err=%v",
+				id,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusInternalServerError,
+				map[string]string{
+					"error": "会議の再開に失敗しました",
+				},
+			)
+		}
+
+		// 同じ会議を開いている画面へ再開を通知
+		hub.Broadcast(
+			id,
+			wsHub.Event{
+				Type:      "meeting_resumed",
+				MeetingID: id,
+			},
+		)
+
+		return c.NoContent(http.StatusNoContent)
+	}
+}

@@ -16,6 +16,9 @@ CREATE TABLE meetings (
     actual_start_at TIMESTAMPTZ,
     actual_end_at TIMESTAMPTZ,
 
+    paused_at TIMESTAMPTZ,
+    total_paused_seconds INTEGER NOT NULL DEFAULT 0,
+
     status VARCHAR(20) NOT NULL DEFAULT 'scheduled',
 
     current_agenda_id BIGINT,

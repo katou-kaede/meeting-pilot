@@ -48,6 +48,8 @@ func main() {
 	e.GET("/api/meetings/:id/session", handler.GetMeetingSessionByID(db))             // 会議中：詳細
 	e.PATCH("/api/meetings/:id/current-agenda", handler.ChangeCurrentAgenda(db, hub)) // 会議中：議題を戻す/進める
 	e.PATCH("/api/meetings/:id/session", handler.SaveMeetingSession(db))              // 会議中：一時保存
+	e.PATCH("/api/meetings/:id/pause", handler.PauseMeeting(db, hub)) 				  // 会議中：一時停止
+	e.PATCH("/api/meetings/:id/resume", handler.ResumeMeeting(db, hub)) 			  // 会議中：再開
 
 	e.GET("/api/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{

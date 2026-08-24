@@ -89,16 +89,19 @@ export default function MeetingSessionPage() {
       const initialRemainingSeconds = meetingData.agendas.map((agenda) => {
         let elapsedSeconds = agenda.elapsed_seconds;
 
+        // 現在計測中の場合だけ、開始後の時間を加算
         if (
           agenda.id === meetingData.current_agenda_id &&
-          agenda.actual_start_at
+          agenda.actual_start_at &&
+          agenda.actual_end_at === null &&
+          meetingData.paused_at === null
         ) {
           elapsedSeconds += Math.floor(
             (now - new Date(agenda.actual_start_at).getTime()) / 1000
           );
         }
 
-        return agenda.planned_minutes * 60 - elapsedSeconds
+        return agenda.planned_minutes * 60 - elapsedSeconds;
       });
 
       setAgendaRemainingSeconds(initialRemainingSeconds);
@@ -143,6 +146,15 @@ export default function MeetingSessionPage() {
 
         if (message.type === "meeting_completed") {
           navigate(`/meetings/${id}`);
+          return;
+        }
+
+        if (
+          message.type === "meeting_paused" ||
+          message.type === "meeting_resumed"
+        ) {
+          fetchMeeting(false);
+          return;
         }
         
       } catch (error) {
@@ -194,6 +206,8 @@ export default function MeetingSessionPage() {
   // 現在進行中の議題の残り時間を減らす
   // ============================================
   useEffect(() => {
+    if (!meeting || meeting.paused_at) return;
+
     const timerId = window.setInterval(() => {
       setAgendaRemainingSeconds((prev) =>
         prev.map((seconds, index) =>
@@ -205,7 +219,7 @@ export default function MeetingSessionPage() {
     }, 1000);
 
     return () => window.clearInterval(timerId);
-  }, [currentAgendaIndex]);
+  }, [currentAgendaIndex, meeting?.paused_at]);
 
   // ============================================
   // 1秒ごとに現在時刻を更新
@@ -374,9 +388,56 @@ export default function MeetingSessionPage() {
   };
 
   // ============================================
+  // 一時停止・再開処理
+  // ============================================
+  const handlePauseResume = async () => {
+    if (!meeting || saving) return;
+
+    const isPaused = meeting.paused_at !== null;
+    const action = isPaused ? "resume" : "pause";
+
+    setErrorMessage("");
+    setSaving(true);
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}/${action}`,
+        {
+          method: "PATCH",
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+
+        setErrorMessage(
+          error.error ||
+            (isPaused
+              ? "会議の再開に失敗しました"
+              : "会議の一時停止に失敗しました")
+        );
+        return;
+      }
+
+      // 最新の停止状態・時間を取得
+      await fetchMeeting(false);
+
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(
+        isPaused
+          ? "会議の再開に失敗しました"
+          : "会議の一時停止に失敗しました"
+      );
+
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ============================================
   // 表示用ユーティリティ
   // ============================================
-  
   // タイマーの表示形式
   const formatTimer = (seconds: number) => {
     const absoluteSeconds = Math.abs(seconds);
@@ -409,10 +470,21 @@ export default function MeetingSessionPage() {
   // 会議全体の予定時間
   const meetingPlannedSeconds = (meeting?.planned_minutes ?? 0) * 60;
 
+  // 会議全体の経過時間計算用の基準時刻(paused_atがあればそこ、なければ現在時刻)
+  const meetingTimerEndTime = meeting?.paused_at
+  ? new Date(meeting.paused_at).getTime()
+  : currentTime;
+  
   // 会議全体の経過時間計算
   const meetingElapsedSeconds = meeting?.actual_start_at
-    ? Math.floor(
-        (currentTime - new Date(meeting.actual_start_at).getTime()) / 1000
+    ? Math.max(
+        0,
+        Math.floor(
+          (
+            meetingTimerEndTime -
+            new Date(meeting.actual_start_at).getTime()
+          ) / 1000
+        ) - meeting.total_paused_seconds
       )
     : 0;
 
@@ -511,9 +583,11 @@ export default function MeetingSessionPage() {
             remainingSeconds={meetingRemainingSeconds}
             progress={meetingProgress}
             saving={saving}
+            paused={meeting.paused_at !== null}
             formatTimer={formatTimer}
             onSave={handleSaveSession}
             onComplete={handleComplete}
+            onPauseResume={handlePauseResume}
           />                
 
           {/* 議題タイマー */}

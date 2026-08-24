@@ -174,6 +174,8 @@ func GetMeetingSessionByID(
 			planned_minutes,
 			status,
 			actual_start_at,
+			paused_at,
+			total_paused_seconds,
 			current_agenda_id,
 			COALESCE(decisions, ''),
 			COALESCE(todo, '')
@@ -188,6 +190,8 @@ func GetMeetingSessionByID(
 		&meeting.PlannedMinutes,
 		&meeting.Status,
 		&meeting.ActualStartAt,
+		&meeting.PausedAt,
+		&meeting.TotalPausedSeconds,
 		&meeting.CurrentAgendaID,
 		&meeting.Decisions,
 		&meeting.Todo,
@@ -452,4 +456,141 @@ func SaveMeetingSession(
 	}
 
 	return nil
+}
+
+// ============================================
+// 会議中：一時停止
+// ============================================
+func PauseMeeting(
+	db *sql.DB,
+	id int64,
+) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(`
+		UPDATE meetings
+		SET
+			paused_at = NOW(),
+			updated_at = NOW()
+		WHERE
+			id = $1
+			AND status = 'in_progress'
+			AND paused_at IS NULL
+	`,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return fmt.Errorf(
+			"meeting not found or cannot be paused",
+		)
+	}
+
+	// 現在議題の経過時間を累積
+	_, err = tx.Exec(`
+		UPDATE agendas
+		SET
+			elapsed_seconds =
+				elapsed_seconds +
+				CASE
+					WHEN actual_start_at IS NOT NULL
+					THEN EXTRACT(
+						EPOCH FROM (NOW() - actual_start_at)
+					)::INTEGER
+					ELSE 0
+				END,
+			actual_end_at = NOW(),
+			updated_at = NOW()
+		WHERE id = (
+			SELECT current_agenda_id
+			FROM meetings
+			WHERE id = $1
+		)
+	`,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// ============================================
+// 会議中：再開
+// ============================================
+func ResumeMeeting(
+	db *sql.DB,
+	id int64,
+) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(`
+		UPDATE meetings
+		SET
+			total_paused_seconds =
+				total_paused_seconds +
+				EXTRACT(
+					EPOCH FROM (NOW() - paused_at)
+				)::INTEGER,
+			paused_at = NULL,
+			updated_at = NOW()
+		WHERE
+			id = $1
+			AND status = 'in_progress'
+			AND paused_at IS NOT NULL
+	`,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return fmt.Errorf(
+			"meeting not found or cannot be resumed",
+		)
+	}
+
+	// 現在議題の計測を再開
+	_, err = tx.Exec(`
+		UPDATE agendas
+		SET
+			actual_start_at = NOW(),
+			actual_end_at = NULL,
+			updated_at = NOW()
+		WHERE id = (
+			SELECT current_agenda_id
+			FROM meetings
+			WHERE id = $1
+		)
+	`,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }

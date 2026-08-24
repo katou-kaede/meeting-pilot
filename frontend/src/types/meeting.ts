@@ -74,6 +74,8 @@ export type MeetingSessionDetail = {
   planned_minutes: number;
   status: string;
   actual_start_at: string | null;
+  paused_at: string | null;
+  total_paused_seconds: number;
   current_agenda_id: number | null;
   decisions: string;
   todo: string;
