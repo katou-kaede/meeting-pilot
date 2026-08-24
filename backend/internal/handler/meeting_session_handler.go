@@ -295,3 +295,66 @@ func ChangeCurrentAgenda(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 		return c.NoContent(http.StatusNoContent)
 	}
 }
+
+// ============================================
+// 会議中：一時保存
+// ============================================
+func SaveMeetingSession(
+	db *sql.DB,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		id, err := strconv.ParseInt(
+			c.Param("id"),
+			10,
+			64,
+		)
+		if err != nil {
+			log.Printf(
+				"SaveMeetingSession invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
+
+			return c.JSON(
+				http.StatusBadRequest,
+				map[string]string{
+					"error": "会議IDが不正です",
+				},
+			)
+		}
+
+		var req model.SaveMeetingSessionRequest
+
+		if err := c.Bind(&req); err != nil {
+			log.Printf(
+				"SaveMeetingSession bind failed id=%d err=%v",
+				id,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusBadRequest,
+				map[string]string{
+					"error": "入力内容の形式が正しくありません",
+				},
+			)
+		}
+
+		if err := repository.SaveMeetingSession(db, id, req); err != nil {
+			log.Printf(
+				"SaveMeetingSession failed id=%d err=%v",
+				id,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusInternalServerError,
+				map[string]string{
+					"error": "会議内容の一時保存に失敗しました",
+				},
+			)
+		}
+
+		return c.NoContent(http.StatusNoContent)
+	}
+}

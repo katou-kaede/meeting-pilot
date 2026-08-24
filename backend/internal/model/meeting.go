@@ -138,3 +138,17 @@ type AgendaSessionDetail struct {
 type ChangeCurrentAgendaRequest struct {
 	TargetAgendaID int64 `json:"agenda_id"`
 }
+
+// ============================================
+// 会議中：一時保存
+// ============================================
+type SaveAgendaSessionRequest struct {
+	ID   int64  `json:"id"`
+	Memo string `json:"memo"`
+}
+
+type SaveMeetingSessionRequest struct {
+	Decisions string                     `json:"decisions"`
+	Todo      string                     `json:"todo"`
+	Agendas   []SaveAgendaSessionRequest `json:"agendas"`
+}

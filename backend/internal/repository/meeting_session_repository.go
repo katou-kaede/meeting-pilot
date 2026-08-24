@@ -370,3 +370,86 @@ func ChangeCurrentAgenda(
 
 	return tx.Commit()
 }
+
+// ============================================
+// 会議中：一時保存
+// ============================================
+func SaveMeetingSession(
+	db *sql.DB,
+	id int64,
+	req model.SaveMeetingSessionRequest,
+) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 決定事項・TODOを保存
+	result, err := tx.Exec(`
+		UPDATE meetings
+		SET
+			decisions = $1,
+			todo = $2,
+			updated_at = NOW()
+		WHERE
+			id = $3
+			AND status = 'in_progress'
+	`,
+		req.Decisions,
+		req.Todo,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return fmt.Errorf(
+			"meeting not found or session is not in progress",
+		)
+	}
+
+	// 各Agendaのメモを保存
+	for _, agenda := range req.Agendas {
+		result, err := tx.Exec(`
+			UPDATE agendas
+			SET
+				memo = $1,
+				updated_at = NOW()
+			WHERE
+				id = $2
+				AND meeting_id = $3
+		`,
+			agenda.Memo,
+			agenda.ID,
+			id,
+		)
+		if err != nil {
+			return err
+		}
+
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if rows == 0 {
+			return fmt.Errorf(
+				"agenda not found: id=%d",
+				agenda.ID,
+			)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}

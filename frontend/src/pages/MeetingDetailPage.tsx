@@ -22,8 +22,9 @@ export default function MeetingDetailPage() {
   // エラーメッセージ
   const [errorMessage, setErrorMessage] = useState("");
   const [connectionError, setConnectionError] = useState("");
-  const [loading, setLoading] = useState(true);
 
+  // 通信状態
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [selectedAgendaIndex, setSelectedAgendaIndex] = useState(0);

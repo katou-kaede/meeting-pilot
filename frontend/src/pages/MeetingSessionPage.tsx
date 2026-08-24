@@ -3,11 +3,15 @@ import { useCallback, useEffect, useState } from "react";
 import AgendaSidebar from "../components/AgendaSidebar";
 import type { MeetingSessionDetail } from "../types/meeting";
 import ErrorMessage from "../components/ErrorMessage";
-import CircularTimer from "../components/CircularTimer";
 import Loading from "../components/Loading";
+import AgendaTimerCard from "../components/AgendaTimerCard";
+import MeetingTimerCard from "../components/MeetingTimerCard";
 import { ArrowLeft } from "lucide-react";
 
 export default function MeetingSessionPage() {
+  // ============================================
+  // State・画面データ
+  // ============================================
   const { id } = useParams();
 
   const [meeting, setMeeting] = useState<MeetingSessionDetail | null>(null);
@@ -23,9 +27,11 @@ export default function MeetingSessionPage() {
   // エラーメッセージ
   const [errorMessage, setErrorMessage] = useState("");
   const [connectionError, setConnectionError] = useState("");
-  const [loading, setLoading] = useState(true);
 
+  // 通信状態
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   
   const navigate = useNavigate();
 
@@ -33,7 +39,9 @@ export default function MeetingSessionPage() {
   const [agendaRemainingSeconds, setAgendaRemainingSeconds] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
+  // ============================================
   // 会議情報の取得
+  // ============================================
   const fetchMeeting = useCallback(async (syncSelectedAgenda = false) => {
     setErrorMessage("");
     try {
@@ -54,8 +62,11 @@ export default function MeetingSessionPage() {
       if (meetingData.status !== "in_progress") {
         navigate(`/meetings/${id}`, {
           replace: true,  // 進行中でない場合は、セッションページから詳細ページへリダイレクト
-        })
+        });
+
+        return;
       }
+
       setMeeting(meetingData);
 
       // DBの現在議題からIndexを復元
@@ -99,13 +110,16 @@ export default function MeetingSessionPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, navigate]);
 
+  // 初回データ取得
   useEffect(() => {
     fetchMeeting(true);
   }, [fetchMeeting]);
 
-  // WebSocket接続用のuseEffect
+  // ============================================
+  // WebSocket接続用
+  // ============================================
   useEffect(() => {
     if (!id) return;
 
@@ -160,7 +174,25 @@ export default function MeetingSessionPage() {
     };
   }, [id, fetchMeeting, navigate]);
 
+  // ============================================
+  // 「一時保存しました」を3秒後に消す
+  // ============================================
+  useEffect(() => {
+    if (!saveMessage) return;
+
+    // 「一時保存しました」を3秒後に消すためのタイマー
+    const timerId = window.setTimeout(() => {
+      setSaveMessage("");
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [saveMessage]);
+
+  // ============================================
   // 現在進行中の議題の残り時間を減らす
+  // ============================================
   useEffect(() => {
     const timerId = window.setInterval(() => {
       setAgendaRemainingSeconds((prev) =>
@@ -175,7 +207,9 @@ export default function MeetingSessionPage() {
     return () => window.clearInterval(timerId);
   }, [currentAgendaIndex]);
 
+  // ============================================
   // 1秒ごとに現在時刻を更新
+  // ============================================
   useEffect(() => {
     const timerId = window.setInterval(() => {
       setCurrentTime(Date.now());
@@ -186,18 +220,10 @@ export default function MeetingSessionPage() {
     };
   }, []);
 
-  // タイマーの表示形式
-  const formatTimer = (seconds: number) => {
-    const absoluteSeconds = Math.abs(seconds);
-    const minutes = Math.floor(absoluteSeconds / 60);
-    const remainingSeconds = absoluteSeconds % 60;
 
-    return `${String(minutes).padStart(2, "0")}:${String(
-      remainingSeconds
-    ).padStart(2, "0")}`;
-  };
-
+  // ============================================
   // 会議終了処理
+  // ============================================
   const handleComplete = async () => {
     if (!meeting) return;
 
@@ -244,7 +270,55 @@ export default function MeetingSessionPage() {
     }
   };
 
+  // ============================================
+  // 一時保存処理
+  // ============================================
+  const handleSaveSession = async () => {
+    if (!meeting || saving) return;
+
+    setErrorMessage("");
+    setSaveMessage("");
+    setSaving(true);
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}/session`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            decisions: meeting.decisions,
+            todo: meeting.todo,
+            agendas: meeting.agendas.map((agenda) => ({
+              id: agenda.id,
+              memo: agenda.memo,
+            })),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        setErrorMessage(error.error || "会議内容の一時保存に失敗しました");
+        return;
+      }
+
+      setSaveMessage("一時保存しました");
+
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("一時保存に失敗しました");
+
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ============================================
   // 議題の切り替え処理
+  // ============================================
   const changeCurrentAgenda = async (targetIndex: number) => {
     const targetAgenda = agendas[targetIndex];
 
@@ -297,6 +371,21 @@ export default function MeetingSessionPage() {
       console.error(error);
       setErrorMessage("議題の切り替えに失敗しました");
     }
+  };
+
+  // ============================================
+  // 表示用ユーティリティ
+  // ============================================
+  
+  // タイマーの表示形式
+  const formatTimer = (seconds: number) => {
+    const absoluteSeconds = Math.abs(seconds);
+    const minutes = Math.floor(absoluteSeconds / 60);
+    const remainingSeconds = absoluteSeconds % 60;
+
+    return `${String(minutes).padStart(2, "0")}:${String(
+      remainingSeconds
+    ).padStart(2, "0")}`;
   };
 
   // 議題を進める処理
@@ -388,6 +477,13 @@ export default function MeetingSessionPage() {
           <ErrorMessage message={errorMessage || connectionError} />
         )}
 
+        {/* 保存メッセージ */}
+        {saveMessage && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+            {saveMessage}
+          </div>
+        )}
+
         {meeting && (
         <>
         {/* タイトルエリア */}
@@ -408,97 +504,31 @@ export default function MeetingSessionPage() {
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
 
           {/* 全体タイマー */}
-          <div className="h-full rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="h-full flex items-center gap-6">
-              {/* 円形タイマー */}
-              <CircularTimer
-                remainingSeconds={meetingRemainingSeconds}
-                progress={meetingProgress}
-                color="#3b82f6"
-                label="全体残り"
-                overtimeLabel="全体超過"
-                formatTimer={formatTimer}
-              />             
-
-              {/* 全体タイマー情報 */}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-slate-500">
-                  {meeting.planned_minutes}分の全体タイマー
-                </p>
-
-                <p className="mt-1 font-medium text-slate-700">
-                  経過 {formatTimer(meetingElapsedSeconds)} /{" "}
-                  {formatTimer(meetingPlannedSeconds)}
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleComplete}
-                    disabled={saving}
-                    className="rounded-xl bg-emerald-600 px-6 py-2 font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {saving ? "終了中..." : "会議終了"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>                
+          <MeetingTimerCard
+            plannedMinutes={meeting.planned_minutes}
+            plannedSeconds={meetingPlannedSeconds}
+            elapsedSeconds={meetingElapsedSeconds}
+            remainingSeconds={meetingRemainingSeconds}
+            progress={meetingProgress}
+            saving={saving}
+            formatTimer={formatTimer}
+            onSave={handleSaveSession}
+            onComplete={handleComplete}
+          />                
 
           {/* 議題タイマー */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-6">
-
-              {/* 円形タイマー */}
-              <CircularTimer
-                remainingSeconds={currentAgendaRemainingSeconds}
-                progress={currentAgendaProgress}
-                color="#8b5cf6"
-                label="議題残り"
-                overtimeLabel="議題超過"
-                formatTimer={formatTimer}
-              />
-
-              {/* 議題タイマー情報 */}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-slate-500">
-                  現在の議題
-                </p>
-
-                <h2 className="mt-1 truncate text-2xl font-bold text-slate-900">
-                  {currentAgenda?.title || "議題なし"}
-                </h2>
-
-                <p className="mt-2 text-sm text-slate-500">
-                  経過 {formatTimer(currentAgendaElapsedSeconds)} / {" "} 
-                  {formatTimer(currentAgendaPlannedSeconds)}
-                </p>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handlePreviousAgenda}
-                    disabled={currentAgendaIndex === 0}
-                    className="rounded-xl border border-slate-300 px-4 py-2 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                  >
-                    ← 議題を戻す
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextAgenda}
-                    disabled={
-                      agendas.length === 0 ||
-                      currentAgendaIndex >= agendas.length - 1
-                    }
-                    className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                  >
-                    議題を進める →
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AgendaTimerCard
+            title={currentAgenda?.title ?? ""}
+            plannedSeconds={currentAgendaPlannedSeconds}
+            elapsedSeconds={currentAgendaElapsedSeconds}
+            remainingSeconds={currentAgendaRemainingSeconds}
+            progress={currentAgendaProgress}
+            currentIndex={currentAgendaIndex}
+            agendaCount={agendas.length}
+            formatTimer={formatTimer}
+            onPrevious={handlePreviousAgenda}
+            onNext={handleNextAgenda}
+          />
         </div>
           
         {/* アジェンダ */}
