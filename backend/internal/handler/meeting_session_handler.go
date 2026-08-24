@@ -9,6 +9,7 @@ import (
 
 	"meeting-pilot/internal/model"
 	"meeting-pilot/internal/repository"
+	wsHub "meeting-pilot/internal/websocket"
 
 	"github.com/labstack/echo/v4"
 )
@@ -16,7 +17,7 @@ import (
 // ============================================
 // ミーティング開始
 // ============================================
-func StartMeeting(db *sql.DB) echo.HandlerFunc {
+func StartMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 	return func(c echo.Context) error {
 
 		id, err := strconv.ParseInt(
@@ -36,10 +37,10 @@ func StartMeeting(db *sql.DB) echo.HandlerFunc {
 		err = repository.StartMeeting(db, id)
 		if err != nil {
 			log.Printf(
-                "StartMeeting failed id=%d err=%v",
-                id,
-                err,
-            )
+				"StartMeeting failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
@@ -48,10 +49,18 @@ func StartMeeting(db *sql.DB) echo.HandlerFunc {
 			)
 		}
 
+		hub.Broadcast(
+			id,
+			wsHub.Event{
+				Type:      "meeting_started",
+				MeetingID: id,
+			},
+		)
+
 		log.Printf(
-            "StartMeeting success id=%d",
-            id,
-        )
+			"StartMeeting success id=%d",
+			id,
+		)
 
 		return c.NoContent(http.StatusNoContent)
 	}
@@ -60,7 +69,7 @@ func StartMeeting(db *sql.DB) echo.HandlerFunc {
 // ============================================
 // ミーティング終了
 // ============================================
-func CompleteMeeting(db *sql.DB) echo.HandlerFunc {
+func CompleteMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		id, err := strconv.ParseInt(
 			c.Param("id"),
@@ -69,10 +78,10 @@ func CompleteMeeting(db *sql.DB) echo.HandlerFunc {
 		)
 		if err != nil {
 			log.Printf(
-                "CompleteMeeting invalid id=%s err=%v",
-                c.Param("id"),
-                err,
-            )
+				"CompleteMeeting invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -85,10 +94,10 @@ func CompleteMeeting(db *sql.DB) echo.HandlerFunc {
 
 		if err := c.Bind(&req); err != nil {
 			log.Printf(
-                "CompleteMeeting bind failed id=%d err=%v",
-                id,
-                err,
-            )
+				"CompleteMeeting bind failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -99,10 +108,10 @@ func CompleteMeeting(db *sql.DB) echo.HandlerFunc {
 
 		if err := repository.CompleteMeeting(db, id, req); err != nil {
 			log.Printf(
-                "CompleteMeeting failed id=%d err=%v",
-                id,
-                err,
-            )
+				"CompleteMeeting failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
@@ -110,6 +119,15 @@ func CompleteMeeting(db *sql.DB) echo.HandlerFunc {
 				},
 			)
 		}
+
+		// DB更新成功後に、同じ会議へ接続中のブラウザへ通知
+		hub.Broadcast(
+			id,
+			wsHub.Event{
+				Type:      "meeting_completed",
+				MeetingID: id,
+			},
+		)
 
 		log.Printf("CompleteMeeting success id=%d", id)
 
@@ -129,10 +147,10 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 		)
 		if err != nil {
 			log.Printf(
-                "GetMeetingSessionByID invalid id=%s err=%v",
-                c.Param("id"),
-                err,
-            )
+				"GetMeetingSessionByID invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -145,9 +163,9 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				log.Printf(
-                    "GetMeetingSessionByID not found id=%d",
-                    id,
-                )
+					"GetMeetingSessionByID not found id=%d",
+					id,
+				)
 				return c.JSON(
 					http.StatusNotFound,
 					map[string]string{
@@ -157,10 +175,10 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 			}
 
 			log.Printf(
-                "GetMeetingSessionByID failed id=%d err=%v",
-                id,
-                err,
-            )
+				"GetMeetingSessionByID failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
@@ -176,7 +194,7 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 // ============================================
 // 会議中：議題を戻す/進める
 // ============================================
-func ChangeCurrentAgenda(db *sql.DB) echo.HandlerFunc {
+func ChangeCurrentAgenda(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
@@ -185,10 +203,10 @@ func ChangeCurrentAgenda(db *sql.DB) echo.HandlerFunc {
 		)
 		if err != nil {
 			log.Printf(
-                "ChangeCurrentAgenda invalid meeting id=%s err=%v",
-                c.Param("id"),
-                err,
-            )
+				"ChangeCurrentAgenda invalid meeting id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -201,10 +219,10 @@ func ChangeCurrentAgenda(db *sql.DB) echo.HandlerFunc {
 
 		if err := c.Bind(&req); err != nil {
 			log.Printf(
-                "ChangeCurrentAgenda bind failed meetingID=%d err=%v",
-                meetingID,
-                err,
-            )
+				"ChangeCurrentAgenda bind failed meetingID=%d err=%v",
+				meetingID,
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -215,10 +233,10 @@ func ChangeCurrentAgenda(db *sql.DB) echo.HandlerFunc {
 
 		if req.TargetAgendaID <= 0 {
 			log.Printf(
-                "ChangeCurrentAgenda invalid agenda id meetingID=%d targetAgendaID=%d",
-                meetingID,
-                req.TargetAgendaID,
-            )
+				"ChangeCurrentAgenda invalid agenda id meetingID=%d targetAgendaID=%d",
+				meetingID,
+				req.TargetAgendaID,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -234,10 +252,10 @@ func ChangeCurrentAgenda(db *sql.DB) echo.HandlerFunc {
 		); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				log.Printf(
-                    "ChangeCurrentAgenda not found meetingID=%d targetAgendaID=%d",
-                    meetingID,
-                    req.TargetAgendaID,
-                )
+					"ChangeCurrentAgenda not found meetingID=%d targetAgendaID=%d",
+					meetingID,
+					req.TargetAgendaID,
+				)
 				return c.JSON(
 					http.StatusNotFound,
 					map[string]string{
@@ -247,11 +265,11 @@ func ChangeCurrentAgenda(db *sql.DB) echo.HandlerFunc {
 			}
 
 			log.Printf(
-                "ChangeCurrentAgenda failed meetingID=%d targetAgendaID=%d err=%v",
-                meetingID,
-                req.TargetAgendaID,
-                err,
-            )
+				"ChangeCurrentAgenda failed meetingID=%d targetAgendaID=%d err=%v",
+				meetingID,
+				req.TargetAgendaID,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
@@ -260,11 +278,20 @@ func ChangeCurrentAgenda(db *sql.DB) echo.HandlerFunc {
 			)
 		}
 
+		// DB更新成功後に、同じ会議へ接続中のブラウザへ通知
+		hub.Broadcast(
+			meetingID,
+			wsHub.Event{
+				Type:      "current_agenda_changed",
+				MeetingID: meetingID,
+			},
+		)
+
 		log.Printf(
-            "ChangeCurrentAgenda success meetingID=%d targetAgendaID=%d",
-            meetingID,
-            req.TargetAgendaID,
-        )
+			"ChangeCurrentAgenda success meetingID=%d targetAgendaID=%d",
+			meetingID,
+			req.TargetAgendaID,
+		)
 		return c.NoContent(http.StatusNoContent)
 	}
 }

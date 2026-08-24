@@ -21,6 +21,7 @@ export default function MeetingDetailPage() {
   const navigate = useNavigate();
   // エラーメッセージ
   const [errorMessage, setErrorMessage] = useState("");
+  const [connectionError, setConnectionError] = useState("");
   const [loading, setLoading] = useState(true);
 
   const [saving, setSaving] = useState(false);
@@ -56,6 +57,49 @@ export default function MeetingDetailPage() {
 
     fetchMeeting();
   }, [id]);
+
+  // WebSocket接続用のuseEffect
+  useEffect(() => {
+    if (!id) return;
+
+    const socket = new WebSocket(
+      `ws://localhost:8080/ws/meetings/${id}`
+    );
+
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+
+        if (message.type === "meeting_started") {
+          navigate(`/meetings/${id}/session`);
+        }
+      } catch (error) {
+        console.error(
+          "WebSocket message parse failed:",
+          error
+        );
+      }
+    };
+
+    socket.onerror = (error) => {
+      setConnectionError("リアルタイム接続に問題が発生しました");
+      console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = (event) => {
+      console.log("WebSocket disconnected", event.code);
+
+      if (event.code !== 1000) {
+        setConnectionError(
+          "リアルタイム接続が切断されました。画面を再読み込みしてください"
+        );
+      }
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [id, navigate]);
 
   // 削除処理
   const handleDelete = async () => {
@@ -148,8 +192,8 @@ export default function MeetingDetailPage() {
         </Link>
 
         {/* エラーメッセージ */}
-        {errorMessage && (
-          <ErrorMessage message={errorMessage} />
+        {(errorMessage || connectionError) && (
+          <ErrorMessage message={errorMessage || connectionError} />
         )}
 
         {meeting && (

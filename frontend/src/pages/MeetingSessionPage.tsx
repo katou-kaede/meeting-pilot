@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AgendaSidebar from "../components/AgendaSidebar";
 import type { MeetingSessionDetail } from "../types/meeting";
 import ErrorMessage from "../components/ErrorMessage";
@@ -22,6 +22,7 @@ export default function MeetingSessionPage() {
 
   // エラーメッセージ
   const [errorMessage, setErrorMessage] = useState("");
+  const [connectionError, setConnectionError] = useState("");
   const [loading, setLoading] = useState(true);
 
   const [saving, setSaving] = useState(false);
@@ -33,66 +34,131 @@ export default function MeetingSessionPage() {
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   // 会議情報の取得
+  const fetchMeeting = useCallback(async (syncSelectedAgenda = false) => {
+    setErrorMessage("");
+    try {
+
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}/session`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMessage(data.error);
+        return;
+      }
+
+      const meetingData = data as MeetingSessionDetail;
+
+      if (meetingData.status !== "in_progress") {
+        navigate(`/meetings/${id}`, {
+          replace: true,  // 進行中でない場合は、セッションページから詳細ページへリダイレクト
+        })
+      }
+      setMeeting(meetingData);
+
+      // DBの現在議題からIndexを復元
+      const currentIndex = meetingData.agendas.findIndex(
+        (agenda) => agenda.id === meetingData.current_agenda_id
+      );
+
+      const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+
+      setCurrentAgendaIndex(safeCurrentIndex);
+
+      // 初回表示時だけ、選択中議題も進行中議題へ合わせる
+      if (syncSelectedAgenda) {
+        setSelectedAgendaIndex(safeCurrentIndex);
+      }
+
+      // 議題ごとの残り時間を初期化
+      const now = Date.now();
+
+      const initialRemainingSeconds = meetingData.agendas.map((agenda) => {
+        let elapsedSeconds = agenda.elapsed_seconds;
+
+        if (
+          agenda.id === meetingData.current_agenda_id &&
+          agenda.actual_start_at
+        ) {
+          elapsedSeconds += Math.floor(
+            (now - new Date(agenda.actual_start_at).getTime()) / 1000
+          );
+        }
+
+        return agenda.planned_minutes * 60 - elapsedSeconds
+      });
+
+      setAgendaRemainingSeconds(initialRemainingSeconds);
+
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("会議情報の取得に失敗しました");
+
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
-    const fetchMeeting = async () => {
+    fetchMeeting(true);
+  }, [fetchMeeting]);
+
+  // WebSocket接続用のuseEffect
+  useEffect(() => {
+    if (!id) return;
+
+    const socket = new WebSocket(
+      `ws://localhost:8080/ws/meetings/${id}`
+    );
+
+    socket.onopen = () => {
+      setConnectionError("");
+      console.log("WebSocket connected");
+    };
+
+    socket.onmessage = (event) => {
       try {
-        setErrorMessage("");
+        const message = JSON.parse(event.data);
 
-        const response = await fetch(
-          `http://localhost:8080/api/meetings/${id}/session`
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setErrorMessage(data.error);
+        if (message.type === "current_agenda_changed") {
+          fetchMeeting(false);
           return;
         }
 
-        const meetingData = data as MeetingSessionDetail;
-        setMeeting(meetingData);
-
-        // DBの現在議題からIndexを復元
-        const currentIndex = meetingData.agendas.findIndex(
-          (agenda) => agenda.id === meetingData.current_agenda_id
-        );
-
-        const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
-
-        setCurrentAgendaIndex(safeCurrentIndex);
-        setSelectedAgendaIndex(safeCurrentIndex);
-
-        // 議題ごとの残り時間を初期化
-        const now = Date.now();
-
-        const initialRemainingSeconds = meetingData.agendas.map((agenda) => {
-          let elapsedSeconds = agenda.elapsed_seconds;
-
-          if (
-            agenda.id === meetingData.current_agenda_id &&
-            agenda.actual_start_at
-          ) {
-            elapsedSeconds += Math.floor(
-              (now - new Date(agenda.actual_start_at).getTime()) / 1000
-            );
-          }
-
-          return agenda.planned_minutes * 60 - elapsedSeconds
-        });
-
-        setAgendaRemainingSeconds(initialRemainingSeconds);
-
+        if (message.type === "meeting_completed") {
+          navigate(`/meetings/${id}`);
+        }
+        
       } catch (error) {
-        console.error(error);
-        setErrorMessage("会議情報の取得に失敗しました");
-
-      } finally {
-        setLoading(false);
+        console.error(
+          "WebSocket message parse failed:",
+          error
+        );
       }
     };
 
-    fetchMeeting();
-  }, [id]);
+    socket.onerror = (error) => {
+      setConnectionError("リアルタイム接続に問題が発生しました");
+      console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = (event) => {
+      console.log("WebSocket disconnected", event.code);
+
+      if (event.code !== 1000) {
+        setConnectionError(
+          "リアルタイム接続が切断されました。画面を再読み込みしてください"
+        );
+      }
+    };
+
+    // ページ移動・アンマウント時に切断
+    return () => {
+      socket.close();
+    };
+  }, [id, fetchMeeting, navigate]);
 
   // 現在進行中の議題の残り時間を減らす
   useEffect(() => {
@@ -318,8 +384,8 @@ export default function MeetingSessionPage() {
         </Link>
 
         {/* エラーメッセージ */}
-        {errorMessage && (
-          <ErrorMessage message={errorMessage} />
+        {(errorMessage || connectionError) && (
+          <ErrorMessage message={errorMessage || connectionError} />
         )}
 
         {meeting && (

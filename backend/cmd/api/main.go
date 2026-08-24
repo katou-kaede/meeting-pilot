@@ -11,6 +11,7 @@ import (
 
 	"meeting-pilot/internal/database"
 	"meeting-pilot/internal/handler"
+	wsHub "meeting-pilot/internal/websocket"
 )
 
 func main() {
@@ -29,19 +30,23 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
+	hub := wsHub.NewHub()
+
 	// ============================================
 	// APIルーティング
 	// ============================================
-	e.GET("/api/meetings", handler.GetMeetings(db))                       // 一覧
-	e.GET("/api/meetings/:id", handler.GetMeetingByID(db))                // 詳細
-	e.POST("/api/meetings", handler.CreateMeeting(db))                    // 新規作成
-	e.PUT("/api/meetings/:id", handler.UpdateMeeting(db))                 // 更新
-	e.DELETE("/api/meetings/:id", handler.DeleteMeeting(db))              // 削除
+	e.GET("/ws/meetings/:id", handler.MeetingWebSocket(hub)) // WebSocket接続
 
-	e.PATCH("/api/meetings/:id/start", handler.StartMeeting(db))          // 会議開始
-	e.PATCH("/api/meetings/:id/complete", handler.CompleteMeeting(db))    // 会議終了
-	e.GET("/api/meetings/:id/session", handler.GetMeetingSessionByID(db)) // 会議中：詳細
-	e.PATCH("/api/meetings/:id/current-agenda", handler.ChangeCurrentAgenda(db)) // 会議中：議題を戻す/進める
+	e.GET("/api/meetings", handler.GetMeetings(db))          // 一覧
+	e.GET("/api/meetings/:id", handler.GetMeetingByID(db))   // 詳細
+	e.POST("/api/meetings", handler.CreateMeeting(db))       // 新規作成
+	e.PUT("/api/meetings/:id", handler.UpdateMeeting(db))    // 更新
+	e.DELETE("/api/meetings/:id", handler.DeleteMeeting(db)) // 削除
+
+	e.PATCH("/api/meetings/:id/start", handler.StartMeeting(db, hub))                 // 会議開始
+	e.PATCH("/api/meetings/:id/complete", handler.CompleteMeeting(db, hub))           // 会議終了
+	e.GET("/api/meetings/:id/session", handler.GetMeetingSessionByID(db))             // 会議中：詳細
+	e.PATCH("/api/meetings/:id/current-agenda", handler.ChangeCurrentAgenda(db, hub)) // 会議中：議題を戻す/進める
 
 	e.GET("/api/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{

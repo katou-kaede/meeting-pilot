@@ -99,7 +99,7 @@ func CompleteMeeting(
 	defer tx.Rollback()
 
 	// 会議結果・ステータスを更新
-	_, err = tx.Exec(`
+	result, err := tx.Exec(`
 		UPDATE meetings
 		SET
 			status = $1,
@@ -107,7 +107,9 @@ func CompleteMeeting(
 			todo = $3,
 			actual_end_at = NOW(),
 			updated_at = NOW()
-		WHERE id = $4
+		WHERE 
+			id = $4
+			AND status = 'in_progress'
 	`,
 		"completed",
 		req.Decisions,
@@ -116,6 +118,16 @@ func CompleteMeeting(
 	)
 	if err != nil {
 		return err
+	}
+
+	// RowsAffected: 更新された行数を取得
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("meeting not found or cannot be completed")
 	}
 
 	// 各アジェンダのメモを更新
@@ -166,7 +178,9 @@ func GetMeetingSessionByID(
 			COALESCE(decisions, ''),
 			COALESCE(todo, '')
 		FROM meetings
-		WHERE id = $1
+		WHERE 
+			id = $1
+			AND status = 'in_progress'
 	`, id).Scan(
 		&meeting.ID,
 		&meeting.Title,

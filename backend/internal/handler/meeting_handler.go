@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -84,10 +85,10 @@ func CreateMeeting(db *sql.DB) echo.HandlerFunc {
 			db, req, scheduledStartAt,
 		); err != nil {
 			log.Printf(
-                "CreateMeeting failed title=%s err=%v",
-                req.Title,
-                err,
-            )
+				"CreateMeeting failed title=%s err=%v",
+				req.Title,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
@@ -97,10 +98,10 @@ func CreateMeeting(db *sql.DB) echo.HandlerFunc {
 		}
 
 		log.Printf(
-            "CreateMeeting success title=%s agendaCount=%d",
-            req.Title,
-            len(req.Agendas),
-        )
+			"CreateMeeting success title=%s agendaCount=%d",
+			req.Title,
+			len(req.Agendas),
+		)
 
 		return c.NoContent(http.StatusCreated)
 	}
@@ -120,20 +121,43 @@ func GetMeetingByID(
 			64,
 		)
 		if err != nil {
+			log.Printf(
+				"GetMeeting invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
-					"error": "invalid id",
+					"error": "会議IDが不正です",
 				},
 			)
 		}
 
 		meeting, err := repository.GetMeetingByID(db, id)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				log.Printf(
+					"GetMeetingByID not found id=%d",
+					id,
+				)
+				return c.JSON(
+					http.StatusNotFound,
+					map[string]string{
+						"error": "会議が見つかりません",
+					},
+				)
+			}
+
+			log.Printf(
+				"GetMeeting failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
-					"error": err.Error(),
+					"error": "会議情報の取得に失敗しました",
 				},
 			)
 		}
@@ -155,10 +179,10 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 		)
 		if err != nil {
 			log.Printf(
-                "UpdateMeeting invalid id=%s err=%v",
-                c.Param("id"),
-                err,
-            )
+				"UpdateMeeting invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -172,10 +196,10 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 		// Bind：JSONを自動でGo structに変換
 		if err := c.Bind(&req); err != nil {
 			log.Printf(
-                "UpdateMeeting bind failed id=%d err=%v",
-                id,
-                err,
-            )
+				"UpdateMeeting bind failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -187,10 +211,10 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 		// バリデーション
 		if err := validator.ValidateUpdateMeeting(req); err != nil {
 			log.Printf(
-                "UpdateMeeting validation failed id=%d err=%v",
-                id,
-                err,
-            )
+				"UpdateMeeting validation failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -205,10 +229,10 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 		)
 		if err != nil {
 			log.Printf(
-                "UpdateMeeting parse datetime failed id=%d err=%v",
-                id,
-                err,
-            )
+				"UpdateMeeting parse datetime failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -225,11 +249,11 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 		)
 		if err != nil {
 			log.Printf(
-                "UpdateMeeting failed id=%d title=%s err=%v",
-                id,
-                req.Title,
-                err,
-            )
+				"UpdateMeeting failed id=%d title=%s err=%v",
+				id,
+				req.Title,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
@@ -262,10 +286,10 @@ func DeleteMeeting(db *sql.DB) echo.HandlerFunc {
 
 		if err != nil {
 			log.Printf(
-                "DeleteMeeting invalid id=%s err=%v",
-                c.Param("id"),
-                err,
-            )
+				"DeleteMeeting invalid id=%s err=%v",
+				c.Param("id"),
+				err,
+			)
 			return c.JSON(
 				http.StatusBadRequest,
 				map[string]string{
@@ -277,10 +301,10 @@ func DeleteMeeting(db *sql.DB) echo.HandlerFunc {
 		err = repository.DeleteMeeting(db, id)
 		if err != nil {
 			log.Printf(
-                "DeleteMeeting failed id=%d err=%v",
-                id,
-                err,
-            )
+				"DeleteMeeting failed id=%d err=%v",
+				id,
+				err,
+			)
 			return c.JSON(
 				http.StatusInternalServerError,
 				map[string]string{
@@ -292,4 +316,3 @@ func DeleteMeeting(db *sql.DB) echo.HandlerFunc {
 		return c.NoContent(http.StatusNoContent)
 	}
 }
-
