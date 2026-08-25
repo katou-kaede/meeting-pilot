@@ -5,6 +5,7 @@ import MeetingDetailPage from "../pages/MeetingDetailPage";
 import MeetingEditPage from "../pages/MeetingEditPage";
 import MeetingSessionPage from "../pages/MeetingSessionPage";
 import LoginPage from "../pages/LoginPage";
+import UserCreatePage from "../pages/UserCreatePage";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AppLayout from "../layouts/AppLayout";
 
@@ -12,6 +13,10 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/users/create",
+    element: <UserCreatePage />,
   },
   {
     element: (

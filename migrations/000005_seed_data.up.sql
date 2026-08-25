@@ -1,3 +1,4 @@
+-- 開発用パスワード：password123
 INSERT INTO users (
     name,
     email,
@@ -6,7 +7,11 @@ INSERT INTO users (
 VALUES (
     'Employee1',
     'employee1@example.com',
-    -- password123
+    '$2a$10$3/oiYZqc56MwmtqY1WtkCeXgx6NOsF8lXSfD80dpQEXxWkIQg/y.y'
+),
+(
+    'Employee2',
+    'employee2@example.com',
     '$2a$10$3/oiYZqc56MwmtqY1WtkCeXgx6NOsF8lXSfD80dpQEXxWkIQg/y.y'
 );
 
@@ -30,7 +35,11 @@ VALUES (
     ・詳細画面の実装
     ・テストケース作成',
     'scheduled',
-    1
+    (
+        SELECT id
+        FROM users
+        WHERE email = 'employee1@example.com'
+    )
 );
 
 INSERT INTO agendas (
@@ -73,4 +82,24 @@ VALUES
     '',
     20,
     3
+);
+
+INSERT INTO meeting_members (
+    meeting_id,
+    user_id,
+    role
+)
+VALUES (
+    (
+        SELECT id
+        FROM meetings
+        WHERE title = '週次開発定例'
+        LIMIT 1
+    ),
+    (
+        SELECT id
+        FROM users
+        WHERE email = 'employee2@example.com'
+    ),
+    'viewer'
 );

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Navigate, useNavigate, Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../contexts/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
@@ -14,6 +14,12 @@ export default function LoginPage() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const location = useLocation();
+
+  const [successMessage, setSuccessMessage] = useState(
+    (location.state as { message?: string } | null)?.message ?? ""
+  );
   
   const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -42,6 +48,25 @@ export default function LoginPage() {
     }
   };
 
+  // 成功メッセージを3秒後に消す
+  useEffect(() => {
+    if (!successMessage) return;
+
+    // 「一時保存しました」を3秒後に消すためのタイマー
+    const timerId = window.setTimeout(() => {
+      setSuccessMessage("");
+
+      navigate("/login", {
+        replace: true,
+        state: null
+      })
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [successMessage, navigate]);
+
   if (loading) {
     return <Loading />;
   }
@@ -64,8 +89,16 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* エラーメッセージ */}
         {errorMessage && (
           <ErrorMessage message={errorMessage} />
+        )}
+
+        {/* 成功メッセージ */}
+        {successMessage && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+            {successMessage}
+          </div>
         )}
 
         <form
@@ -114,6 +147,16 @@ export default function LoginPage() {
             {submitting ? "ログイン中..." : "ログイン"}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-slate-500">
+          アカウントをお持ちでない方は
+          <Link
+            to="/users/create"
+            className="ml-1 font-medium text-slate-900 hover:underline"
+          >
+            新規登録
+          </Link>
+        </p>
       </div>
     </div>
   );
