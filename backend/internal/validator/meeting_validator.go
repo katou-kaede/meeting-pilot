@@ -2,8 +2,8 @@ package validator
 
 import (
 	"errors"
-	"strings"
 	"fmt"
+	"strings"
 	"unicode/utf8"
 
 	"meeting-pilot/internal/model"

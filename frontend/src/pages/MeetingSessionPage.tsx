@@ -32,7 +32,7 @@ export default function MeetingSessionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
-  
+
   const navigate = useNavigate();
 
   // タイマー
@@ -156,7 +156,7 @@ export default function MeetingSessionPage() {
           fetchMeeting(false);
           return;
         }
-        
+
       } catch (error) {
         console.error(
           "WebSocket message parse failed:",
@@ -272,7 +272,7 @@ export default function MeetingSessionPage() {
         setErrorMessage(error.error);
         return;
       }
-    
+
       navigate(`/meetings/${id}`);
 
     } catch (error) {
@@ -373,10 +373,10 @@ export default function MeetingSessionPage() {
           agendas: prev.agendas.map((agenda) =>
             agenda.id === targetAgenda.id
               ? {
-                  ...agenda,
-                  actual_start_at: new Date().toISOString(),
-                  actual_end_at: null,
-                }
+                ...agenda,
+                actual_start_at: new Date().toISOString(),
+                actual_end_at: null,
+              }
               : agenda
           ),
         };
@@ -412,9 +412,9 @@ export default function MeetingSessionPage() {
 
         setErrorMessage(
           error.error ||
-            (isPaused
-              ? "会議の再開に失敗しました"
-              : "会議の一時停止に失敗しました")
+          (isPaused
+            ? "会議の再開に失敗しました"
+            : "会議の一時停止に失敗しました")
         );
         return;
       }
@@ -472,20 +472,20 @@ export default function MeetingSessionPage() {
 
   // 会議全体の経過時間計算用の基準時刻(paused_atがあればそこ、なければ現在時刻)
   const meetingTimerEndTime = meeting?.paused_at
-  ? new Date(meeting.paused_at).getTime()
-  : currentTime;
-  
+    ? new Date(meeting.paused_at).getTime()
+    : currentTime;
+
   // 会議全体の経過時間計算
   const meetingElapsedSeconds = meeting?.actual_start_at
     ? Math.max(
-        0,
-        Math.floor(
-          (
-            meetingTimerEndTime -
-            new Date(meeting.actual_start_at).getTime()
-          ) / 1000
-        ) - meeting.total_paused_seconds
-      )
+      0,
+      Math.floor(
+        (
+          meetingTimerEndTime -
+          new Date(meeting.actual_start_at).getTime()
+        ) / 1000
+      ) - meeting.total_paused_seconds
+    )
     : 0;
 
   // 会議全体の残り時間計算
@@ -504,28 +504,28 @@ export default function MeetingSessionPage() {
 
   // 会議全体時間の進捗率（タイマー表示用）
   const meetingProgress =
-  meetingPlannedSeconds > 0
-    ? Math.min(
+    meetingPlannedSeconds > 0
+      ? Math.min(
         100,
         Math.max(
           0,
           (meetingElapsedSeconds / meetingPlannedSeconds) * 100
         )
       )
-    : 0;
+      : 0;
 
   // 現在議題時間の進捗率（タイマー表示用）
   const currentAgendaProgress =
     currentAgendaPlannedSeconds > 0
       ? Math.min(
-          100,
-          Math.max(
-            0,
-            (currentAgendaElapsedSeconds /
-              currentAgendaPlannedSeconds) *
-              100
-          )
+        100,
+        Math.max(
+          0,
+          (currentAgendaElapsedSeconds /
+            currentAgendaPlannedSeconds) *
+          100
         )
+      )
       : 0;
 
   if (loading) {
@@ -534,89 +534,88 @@ export default function MeetingSessionPage() {
 
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-[1600px] p-6 lg:p-8">
+    <div className="mx-auto max-w-[1600px] p-6 lg:p-8">
 
-        <Link
-          to={`/meetings/${id}`}
-          className="inline-flex items-center text-slate-500 hover:text-slate-900"
-        >
-          <ArrowLeft size={18} /> 会議詳細へ戻る
-        </Link>
+      <Link
+        to={`/meetings/${id}`}
+        className="inline-flex items-center text-slate-500 hover:text-slate-900"
+      >
+        <ArrowLeft size={18} /> 会議詳細へ戻る
+      </Link>
 
-        {/* エラーメッセージ */}
-        {(errorMessage || connectionError) && (
-          <ErrorMessage message={errorMessage || connectionError} />
-        )}
+      {/* エラーメッセージ */}
+      {(errorMessage || connectionError) && (
+        <ErrorMessage message={errorMessage || connectionError} />
+      )}
 
-        {/* 保存メッセージ */}
-        {saveMessage && (
-          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
-            {saveMessage}
-          </div>
-        )}
+      {/* 保存メッセージ */}
+      {saveMessage && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+          {saveMessage}
+        </div>
+      )}
 
-        {meeting && (
+      {meeting && (
         <>
-        {/* タイトルエリア */}
-        <div className="mt-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">
-              {meeting.title}
-            </h1>
+          {/* タイトルエリア */}
+          <div className="mt-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">
+                {meeting.title}
+              </h1>
 
-            <p className="mt-2 text-slate-500">
-              {meeting.description}
-            </p>
+              <p className="mt-2 text-slate-500">
+                {meeting.description}
+              </p>
+            </div>
           </div>
-        </div>
 
 
-        {/* タイマー */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          {/* タイマー */}
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
 
-          {/* 全体タイマー */}
-          <MeetingTimerCard
-            plannedMinutes={meeting.planned_minutes}
-            plannedSeconds={meetingPlannedSeconds}
-            elapsedSeconds={meetingElapsedSeconds}
-            remainingSeconds={meetingRemainingSeconds}
-            progress={meetingProgress}
-            saving={saving}
-            paused={meeting.paused_at !== null}
-            formatTimer={formatTimer}
-            onSave={handleSaveSession}
-            onComplete={handleComplete}
-            onPauseResume={handlePauseResume}
-          />                
+            {/* 全体タイマー */}
+            <MeetingTimerCard
+              plannedMinutes={meeting.planned_minutes}
+              plannedSeconds={meetingPlannedSeconds}
+              elapsedSeconds={meetingElapsedSeconds}
+              remainingSeconds={meetingRemainingSeconds}
+              progress={meetingProgress}
+              saving={saving}
+              paused={meeting.paused_at !== null}
+              formatTimer={formatTimer}
+              onSave={handleSaveSession}
+              onComplete={handleComplete}
+              onPauseResume={handlePauseResume}
+            />
 
-          {/* 議題タイマー */}
-          <AgendaTimerCard
-            title={currentAgenda?.title ?? ""}
-            plannedSeconds={currentAgendaPlannedSeconds}
-            elapsedSeconds={currentAgendaElapsedSeconds}
-            remainingSeconds={currentAgendaRemainingSeconds}
-            progress={currentAgendaProgress}
-            currentIndex={currentAgendaIndex}
-            agendaCount={agendas.length}
-            formatTimer={formatTimer}
-            onPrevious={handlePreviousAgenda}
-            onNext={handleNextAgenda}
-          />
-        </div>
-          
-        {/* アジェンダ */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+            {/* 議題タイマー */}
+            <AgendaTimerCard
+              title={currentAgenda?.title ?? ""}
+              plannedSeconds={currentAgendaPlannedSeconds}
+              elapsedSeconds={currentAgendaElapsedSeconds}
+              remainingSeconds={currentAgendaRemainingSeconds}
+              progress={currentAgendaProgress}
+              currentIndex={currentAgendaIndex}
+              agendaCount={agendas.length}
+              formatTimer={formatTimer}
+              onPrevious={handlePreviousAgenda}
+              onNext={handleNextAgenda}
+            />
+          </div>
 
-          <AgendaSidebar
-            agendas={agendas}
-            selectedIndex={selectedAgendaIndex}
-            currentIndex={currentAgendaIndex}
-            onSelect={setSelectedAgendaIndex}
-          />
+          {/* アジェンダ */}
+          <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
 
-          <main className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-            {selectedAgenda ? (
+            <AgendaSidebar
+              agendas={agendas}
+              selectedIndex={selectedAgendaIndex}
+              currentIndex={currentAgendaIndex}
+              onSelect={setSelectedAgendaIndex}
+            />
+
+            <main className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+              {selectedAgenda ? (
                 <>
                   <div className="border-b border-slate-200 pb-4">
                     <p className="text-sm font-medium text-slate-500">
@@ -665,7 +664,7 @@ export default function MeetingSessionPage() {
                       メモ
                     </h3>
 
-                    <textarea 
+                    <textarea
                       value={selectedAgenda.memo || ""}
                       rows={6}
                       onChange={(e) => {
@@ -675,7 +674,7 @@ export default function MeetingSessionPage() {
                           memo: e.target.value,
                         };
 
-                        setMeeting({...meeting, agendas: updated});
+                        setMeeting({ ...meeting, agendas: updated });
                       }}
                       className="w-full rounded-xl border border-slate-300 px-3 py-2"
                     />
@@ -686,54 +685,53 @@ export default function MeetingSessionPage() {
                   アジェンダがありません
                 </div>
               )}
-          </main>
-        </div>
-
-        {/* 会議後入力項目 */}
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-6 shadow-sm backdrop-blur-xl">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-600">
-              Meeting Result
-            </p>
-
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">
-              決定事項
-            </h2>
-
-            <textarea 
-              value={meeting.decisions || ""}
-              rows={6}
-              onChange={(e) => {
-                setMeeting({...meeting, decisions: e.target.value});
-              }}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2"
-            />
+            </main>
           </div>
 
-          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-6 shadow-sm backdrop-blur-xl">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-600">
-              Next Action
-            </p>
+          {/* 会議後入力項目 */}
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-6 shadow-sm backdrop-blur-xl">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-600">
+                Meeting Result
+              </p>
 
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">
-              TODO
-            </h2>
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">
+                決定事項
+              </h2>
 
-            <textarea 
-              value={meeting.todo || ""}
-              rows={6}
-              onChange={(e) => {
-                setMeeting({...meeting, todo: e.target.value});
-              }}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2"
-            />
+              <textarea
+                value={meeting.decisions || ""}
+                rows={6}
+                onChange={(e) => {
+                  setMeeting({ ...meeting, decisions: e.target.value });
+                }}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-6 shadow-sm backdrop-blur-xl">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-600">
+                Next Action
+              </p>
+
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">
+                TODO
+              </h2>
+
+              <textarea
+                value={meeting.todo || ""}
+                rows={6}
+                onChange={(e) => {
+                  setMeeting({ ...meeting, todo: e.target.value });
+                }}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              />
+            </div>
           </div>
-        </div>
 
         </>
-        )}
+      )}
 
-      </div>
     </div>
   );
 }

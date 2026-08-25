@@ -11,6 +11,7 @@ import (
 
 	"meeting-pilot/internal/database"
 	"meeting-pilot/internal/handler"
+	appMiddleware "meeting-pilot/internal/middleware"
 	wsHub "meeting-pilot/internal/websocket"
 )
 
@@ -28,7 +29,27 @@ func main() {
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(
+		middleware.CORSConfig{
+			AllowOrigins: []string{
+				"http://localhost:5173",
+			},
+			AllowMethods: []string{
+				http.MethodGet,
+				http.MethodPost,
+				http.MethodPut,
+				http.MethodPatch,
+				http.MethodDelete,
+				http.MethodOptions,
+			},
+			AllowHeaders: []string{
+				echo.HeaderOrigin,
+				echo.HeaderContentType,
+				echo.HeaderAccept,
+			},
+			AllowCredentials: true,
+		},
+	))
 
 	hub := wsHub.NewHub()
 
@@ -39,7 +60,7 @@ func main() {
 
 	e.GET("/api/meetings", handler.GetMeetings(db))          // 一覧
 	e.GET("/api/meetings/:id", handler.GetMeetingByID(db))   // 詳細
-	e.POST("/api/meetings", handler.CreateMeeting(db))       // 新規作成
+	e.POST("/api/meetings", handler.CreateMeeting(db), appMiddleware.RequireAuth())       // 新規作成
 	e.PUT("/api/meetings/:id", handler.UpdateMeeting(db))    // 更新
 	e.DELETE("/api/meetings/:id", handler.DeleteMeeting(db)) // 削除
 
@@ -48,8 +69,13 @@ func main() {
 	e.GET("/api/meetings/:id/session", handler.GetMeetingSessionByID(db))             // 会議中：詳細
 	e.PATCH("/api/meetings/:id/current-agenda", handler.ChangeCurrentAgenda(db, hub)) // 会議中：議題を戻す/進める
 	e.PATCH("/api/meetings/:id/session", handler.SaveMeetingSession(db))              // 会議中：一時保存
-	e.PATCH("/api/meetings/:id/pause", handler.PauseMeeting(db, hub)) 				  // 会議中：一時停止
-	e.PATCH("/api/meetings/:id/resume", handler.ResumeMeeting(db, hub)) 			  // 会議中：再開
+	e.PATCH("/api/meetings/:id/pause", handler.PauseMeeting(db, hub))                 // 会議中：一時停止
+	e.PATCH("/api/meetings/:id/resume", handler.ResumeMeeting(db, hub))               // 会議中：再開
+
+	e.POST("/api/users", handler.CreateUser(db))                              // ユーザー登録
+	e.POST("/api/login", handler.Login(db))                                   // ログイン
+	e.GET("/api/me", handler.GetCurrentUser(db), appMiddleware.RequireAuth()) // ログイン後の認証ユーザー情報取得
+	e.POST("/api/logout", handler.Logout())                                   // ログアウト
 
 	e.GET("/api/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{

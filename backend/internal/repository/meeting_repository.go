@@ -59,6 +59,7 @@ func GetMeetings(db *sql.DB) ([]model.Meeting, error) {
 // ============================================
 func CreateMeeting(
 	db *sql.DB,
+	userID int64,
 	req model.CreateMeetingRequest,
 	scheduledStartAt *time.Time,
 ) error {
@@ -92,7 +93,7 @@ func CreateMeeting(
 			$6,
 			$7,
 			'scheduled',
-			1
+			$8
 		)
 		RETURNING id
 	`,
@@ -103,6 +104,7 @@ func CreateMeeting(
 		req.PlannedMinutes,
 		req.Decisions,
 		req.Todo,
+		userID,
 	).Scan(&meetingID)
 	if err != nil {
 		return err

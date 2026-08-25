@@ -11,6 +11,7 @@ import (
 	"meeting-pilot/internal/repository"
 	"meeting-pilot/internal/util"
 	"meeting-pilot/internal/validator"
+	appMiddleware "meeting-pilot/internal/middleware"
 
 	"github.com/labstack/echo/v4"
 )
@@ -42,7 +43,19 @@ func GetMeetings(db *sql.DB) echo.HandlerFunc {
 // ============================================
 func CreateMeeting(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
-
+		userID, ok := c.Get(
+			appMiddleware.UserIDContextKey,
+			).(int64)
+			
+			if !ok {
+				return c.JSON(
+					http.StatusUnauthorized,
+					map[string]string{
+						"error": "ログインが必要です",
+					},
+				)
+			}
+			
 		var req model.CreateMeetingRequest
 
 		// Bind：JSONを自動でGo structに変換
@@ -82,7 +95,7 @@ func CreateMeeting(db *sql.DB) echo.HandlerFunc {
 		}
 
 		if err := repository.CreateMeeting(
-			db, req, scheduledStartAt,
+			db, userID, req, scheduledStartAt,
 		); err != nil {
 			log.Printf(
 				"CreateMeeting failed title=%s err=%v",

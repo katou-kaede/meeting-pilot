@@ -142,7 +142,7 @@ export default function MeetingEditPage() {
 
       const error = await response.json();
       setErrorMessage(error.error);
-    
+
     } catch (error) {
       setErrorMessage("会議の更新に失敗しました");
       console.error(error);
@@ -157,53 +157,51 @@ export default function MeetingEditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 from-slate-50 via-blue-50/40 to-violet-50/40">
-      <div className="mx-auto max-w-[1600px] p-6 lg:p-8">
-        <Link
-          to={`/meetings/${id}`}
-          className="inline-flex items-center text-slate-500 hover:text-slate-900"
+    <div className="mx-auto max-w-[1600px] p-6 lg:p-8">
+      <Link
+        to={`/meetings/${id}`}
+        className="inline-flex items-center text-slate-500 hover:text-slate-900"
+      >
+        <ArrowLeft size={18} /> 会議詳細へ戻る
+      </Link>
+
+      <div className="flex justify-between items-start my-6">
+        <h1 className="text-3xl font-bold text-slate-900">
+          会議情報編集
+        </h1>
+
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="rounded-xl bg-blue-600 px-8 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          <ArrowLeft size={18} /> 会議詳細へ戻る
-        </Link>
-
-        <div className="flex justify-between items-start my-6">
-          <h1 className="text-3xl font-bold text-slate-900">
-            会議情報編集
-          </h1>
-
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="rounded-xl bg-blue-600 px-8 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {saving ? "保存中..." : "保存"}
-          </button>
-        </div>
-
-        {/* エラーメッセージ */}
-        {errorMessage && (
-          <ErrorMessage message={errorMessage} />
-        )}
-
-        <MeetingForm
-          title={title}
-          setTitle={setTitle}
-          description={description}
-          setDescription={setDescription}
-          targetName={targetName}
-          setTargetName={setTargetName}
-          scheduledStartAt={scheduledStartAt}
-          setScheduledStartAt={setScheduledStartAt}
-          plannedMinutes={plannedMinutes}
-          setPlannedMinutes={setPlannedMinutes}
-          decisions={decisions}
-          setDecisions={setDecisions}
-          todo={todo}
-          setTodo={setTodo}
-          agendas={agendas}
-          setAgendas={setAgendas}
-        />
+          {saving ? "保存中..." : "保存"}
+        </button>
       </div>
+
+      {/* エラーメッセージ */}
+      {errorMessage && (
+        <ErrorMessage message={errorMessage} />
+      )}
+
+      <MeetingForm
+        title={title}
+        setTitle={setTitle}
+        description={description}
+        setDescription={setDescription}
+        targetName={targetName}
+        setTargetName={setTargetName}
+        scheduledStartAt={scheduledStartAt}
+        setScheduledStartAt={setScheduledStartAt}
+        plannedMinutes={plannedMinutes}
+        setPlannedMinutes={setPlannedMinutes}
+        decisions={decisions}
+        setDecisions={setDecisions}
+        todo={todo}
+        setTodo={setTodo}
+        agendas={agendas}
+        setAgendas={setAgendas}
+      />
     </div>
   );
 }

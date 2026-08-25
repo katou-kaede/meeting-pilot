@@ -6,7 +6,8 @@ INSERT INTO users (
 VALUES (
     'Employee1',
     'employee1@example.com',
-    'dummy'
+    -- password123
+    '$2a$10$3/oiYZqc56MwmtqY1WtkCeXgx6NOsF8lXSfD80dpQEXxWkIQg/y.y'
 );
 
 INSERT INTO meetings (

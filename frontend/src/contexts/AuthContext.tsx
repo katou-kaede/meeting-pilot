@@ -1,0 +1,144 @@
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+
+import type { User } from "../types/user";
+
+type AuthContextType = {
+  user: User | null;
+  loading: boolean;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<void>;
+  logout: () => Promise<void>;
+  fetchCurrentUser: () => Promise<void>;
+};
+
+const AuthContext = createContext<
+  AuthContextType | undefined
+>(undefined);
+
+type Props = {
+  children: ReactNode;
+};
+
+export function AuthProvider({ children }: Props) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:8080/api/me",
+        {
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        setUser(null);
+        return;
+      }
+
+      const data: User = await response.json();
+
+      setUser(data);
+    } catch (error) {
+      console.error(
+        "認証ユーザーの取得に失敗しました",
+        error
+      );
+
+      setUser(null);
+    }
+  };
+
+  const login = async (
+    email: string,
+    password: string
+  ) => {
+    const response = await fetch(
+      "http://localhost:8080/api/login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || "ログインに失敗しました"
+      );
+    }
+
+    setUser(data as User);
+  };
+
+  const logout = async () => {
+    const response = await fetch(
+        "http://localhost:8080/api/logout",
+        {
+        method: "POST",
+        credentials: "include",
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error("ログアウトに失敗しました");
+    }
+
+    setUser(null);
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      setLoading(true);
+
+      await fetchCurrentUser();
+
+      setLoading(false);
+    };
+
+    initializeAuth();
+  }, []);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        fetchCurrentUser,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error(
+      "useAuthはAuthProvider内で使用してください"
+    );
+  }
+
+  return context;
+}
