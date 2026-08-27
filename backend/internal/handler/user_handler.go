@@ -5,12 +5,12 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 
 	"meeting-pilot/internal/auth"
-	appMiddleware "meeting-pilot/internal/middleware"
 	"meeting-pilot/internal/model"
 	"meeting-pilot/internal/repository"
 	"meeting-pilot/internal/validator"
@@ -201,17 +201,10 @@ func GetCurrentUser(
 	db *sql.DB,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		userID, ok := c.Get(
-			appMiddleware.UserIDContextKey,
-		).(int64)
-
-		if !ok {
-			return c.JSON(
-				http.StatusUnauthorized,
-				map[string]string{
-					"error": "ログインが必要です",
-				},
-			)
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
 		}
 
 		user, err := repository.GetUserByID(
@@ -274,5 +267,78 @@ func Logout() echo.HandlerFunc {
 		})
 
 		return c.NoContent(http.StatusNoContent)
+	}
+}
+
+// ============================================
+// ユーザー検索
+// ============================================
+func SearchUsersForMeeting(
+	db *sql.DB,
+) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
+		meetingID, err := strconv.ParseInt(
+			c.Param("id"),
+			10,
+			64,
+		)
+		if err != nil {
+			log.Printf(
+				"SearchUsersForMeeting invalid meeting_id=%s user_id=%d err=%v",
+				c.Param("id"),
+				userID,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusBadRequest,
+				map[string]string{
+					"error": "会議IDが不正です",
+				},
+			)
+		}
+
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		keyword := c.QueryParam("keyword")
+
+		users, err := repository.SearchUsersForMeeting(
+			db,
+			meetingID,
+			keyword,
+		)
+		if err != nil {
+			log.Printf(
+				"SearchUsersForMeeting failed meeting_id=%d user_id=%d keyword=%q err=%v",
+				meetingID,
+				userID,
+				keyword,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusInternalServerError,
+				map[string]string{
+					"error": "ユーザーの検索に失敗しました",
+				},
+			)
+		}
+
+		return c.JSON(http.StatusOK, users)
 	}
 }

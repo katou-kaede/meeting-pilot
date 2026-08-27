@@ -11,7 +11,6 @@ import (
 	"meeting-pilot/internal/repository"
 	"meeting-pilot/internal/util"
 	"meeting-pilot/internal/validator"
-	appMiddleware "meeting-pilot/internal/middleware"
 
 	"github.com/labstack/echo/v4"
 )
@@ -21,8 +20,13 @@ import (
 // ============================================
 func GetMeetings(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
 
-		meetings, err := repository.GetMeetings(db)
+		meetings, err := repository.GetMeetings(db, userID)
 		if err != nil {
 			log.Printf("GetMeetings failed: %v", err)
 
@@ -43,19 +47,12 @@ func GetMeetings(db *sql.DB) echo.HandlerFunc {
 // ============================================
 func CreateMeeting(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		userID, ok := c.Get(
-			appMiddleware.UserIDContextKey,
-			).(int64)
-			
-			if !ok {
-				return c.JSON(
-					http.StatusUnauthorized,
-					map[string]string{
-						"error": "ログインが必要です",
-					},
-				)
-			}
-			
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
 		var req model.CreateMeetingRequest
 
 		// Bind：JSONを自動でGo structに変換
@@ -127,8 +124,13 @@ func GetMeetingByID(
 	db *sql.DB,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
 
-		id, err := strconv.ParseInt(
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -147,12 +149,23 @@ func GetMeetingByID(
 			)
 		}
 
-		meeting, err := repository.GetMeetingByID(db, id)
+		// ログインユーザーの権限チェック
+		role, err := getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		meeting, err := repository.GetMeetingByID(db, meetingID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				log.Printf(
 					"GetMeetingByID not found id=%d",
-					id,
+					meetingID,
 				)
 				return c.JSON(
 					http.StatusNotFound,
@@ -164,7 +177,7 @@ func GetMeetingByID(
 
 			log.Printf(
 				"GetMeeting failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -175,6 +188,8 @@ func GetMeetingByID(
 			)
 		}
 
+		meeting.CurrentUserRole = role
+
 		return c.JSON(http.StatusOK, meeting)
 	}
 }
@@ -184,8 +199,13 @@ func GetMeetingByID(
 // ============================================
 func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
 
-		id, err := strconv.ParseInt(
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -204,13 +224,24 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 			)
 		}
 
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
 		var req model.UpdateMeetingRequest
 
 		// Bind：JSONを自動でGo structに変換
 		if err := c.Bind(&req); err != nil {
 			log.Printf(
 				"UpdateMeeting bind failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -225,7 +256,7 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 		if err := validator.ValidateUpdateMeeting(req); err != nil {
 			log.Printf(
 				"UpdateMeeting validation failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -243,7 +274,7 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 		if err != nil {
 			log.Printf(
 				"UpdateMeeting parse datetime failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -256,14 +287,14 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 
 		err = repository.UpdateMeeting(
 			db,
-			id,
+			meetingID,
 			req,
 			scheduledStartAt,
 		)
 		if err != nil {
 			log.Printf(
 				"UpdateMeeting failed id=%d title=%s err=%v",
-				id,
+				meetingID,
 				req.Title,
 				err,
 			)
@@ -277,7 +308,7 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 
 		log.Printf(
 			"UpdateMeeting success id=%d title=%s",
-			id,
+			meetingID,
 			req.Title,
 		)
 
@@ -290,13 +321,17 @@ func UpdateMeeting(db *sql.DB) echo.HandlerFunc {
 // ============================================
 func DeleteMeeting(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
 
-		id, err := strconv.ParseInt(
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
 		)
-
 		if err != nil {
 			log.Printf(
 				"DeleteMeeting invalid id=%s err=%v",
@@ -311,11 +346,30 @@ func DeleteMeeting(db *sql.DB) echo.HandlerFunc {
 			)
 		}
 
-		err = repository.DeleteMeeting(db, id)
+		// ログインユーザーの権限チェック
+		role, err := getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+		if role != "owner" {
+			return c.JSON(
+				http.StatusForbidden,
+				map[string]string{
+					"error": "会議を削除できるのは主催者のみです",
+				},
+			)
+		}
+
+		err = repository.DeleteMeeting(db, meetingID)
 		if err != nil {
 			log.Printf(
 				"DeleteMeeting failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(

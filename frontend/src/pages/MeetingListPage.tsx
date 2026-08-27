@@ -17,7 +17,12 @@ export default function MeetingListPage() {
   useEffect(() => {
     const fetchMeetings = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/meetings")
+        const response = await fetch(
+          "http://localhost:8080/api/meetings", 
+          {
+            credentials: "include",
+          }
+        )
 
         const data = await response.json();
 

@@ -1,12 +1,14 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
-import AgendaSidebar from "../components/AgendaSidebar";
 import type { MeetingSessionDetail } from "../types/meeting";
+import type { MeetingMember } from "../types/user";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import AgendaSidebar from "../components/AgendaSidebar";
 import AgendaTimerCard from "../components/AgendaTimerCard";
 import MeetingTimerCard from "../components/MeetingTimerCard";
 import { ArrowLeft } from "lucide-react";
+import { useMeetingSessionWebSocket } from "../hooks/useMeetingSessionWebSocket";
 
 export default function MeetingSessionPage() {
   // ============================================
@@ -39,6 +41,9 @@ export default function MeetingSessionPage() {
   const [agendaRemainingSeconds, setAgendaRemainingSeconds] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
+  // 参加メンバー
+  const [members, setMembers] = useState<MeetingMember[]>([]);
+
   // ============================================
   // 会議情報の取得
   // ============================================
@@ -47,7 +52,10 @@ export default function MeetingSessionPage() {
     try {
 
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/session`
+        `http://localhost:8080/api/meetings/${id}/session`, 
+        {
+          credentials: "include",
+        }
       );
 
       const data = await response.json();
@@ -121,70 +129,61 @@ export default function MeetingSessionPage() {
   }, [fetchMeeting]);
 
   // ============================================
+  // 参加メンバー取得
+  // ============================================
+  const fetchMembers = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/meetings/${id}/members`,
+        {
+          credentials: "include",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMessage(
+          data.error || "参加メンバーの取得に失敗しました"
+        );
+        return;
+      }
+
+      setMembers(data as MeetingMember[]);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("参加メンバーの取得に失敗しました");
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
+
+  // ============================================
   // WebSocket接続用
   // ============================================
-  useEffect(() => {
-    if (!id) return;
+  const handleSessionUpdated = useCallback(() => {
+    fetchMeeting(false);
+  }, [fetchMeeting]);
 
-    const socket = new WebSocket(
-      `ws://localhost:8080/ws/meetings/${id}`
-    );
+  const handleMeetingCompleted = useCallback(() => {
+    navigate(`/meetings/${id}`);
+  }, [navigate, id]);
 
-    socket.onopen = () => {
-      setConnectionError("");
-      console.log("WebSocket connected");
-    };
+  const handleConnectionError = useCallback(
+    (message: string) => {
+      setConnectionError(message);
+    },
+    []
+  );
 
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-
-        if (message.type === "current_agenda_changed") {
-          fetchMeeting(false);
-          return;
-        }
-
-        if (message.type === "meeting_completed") {
-          navigate(`/meetings/${id}`);
-          return;
-        }
-
-        if (
-          message.type === "meeting_paused" ||
-          message.type === "meeting_resumed"
-        ) {
-          fetchMeeting(false);
-          return;
-        }
-
-      } catch (error) {
-        console.error(
-          "WebSocket message parse failed:",
-          error
-        );
-      }
-    };
-
-    socket.onerror = (error) => {
-      setConnectionError("リアルタイム接続に問題が発生しました");
-      console.error("WebSocket error:", error);
-    };
-
-    socket.onclose = (event) => {
-      console.log("WebSocket disconnected", event.code);
-
-      if (event.code !== 1000) {
-        setConnectionError(
-          "リアルタイム接続が切断されました。画面を再読み込みしてください"
-        );
-      }
-    };
-
-    // ページ移動・アンマウント時に切断
-    return () => {
-      socket.close();
-    };
-  }, [id, fetchMeeting, navigate]);
+  useMeetingSessionWebSocket({
+    meetingId: id,
+    onSessionUpdated: handleSessionUpdated,
+    onMeetingCompleted: handleMeetingCompleted,
+    onConnectionError: handleConnectionError,
+  });
 
   // ============================================
   // 「一時保存しました」を3秒後に消す
@@ -253,6 +252,7 @@ export default function MeetingSessionPage() {
         `http://localhost:8080/api/meetings/${id}/complete`,
         {
           method: "PATCH",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
@@ -299,6 +299,7 @@ export default function MeetingSessionPage() {
         `http://localhost:8080/api/meetings/${id}/session`,
         {
           method: "PATCH",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
@@ -345,6 +346,7 @@ export default function MeetingSessionPage() {
         `http://localhost:8080/api/meetings/${id}/current-agenda`,
         {
           method: "PATCH",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },
@@ -404,6 +406,7 @@ export default function MeetingSessionPage() {
         `http://localhost:8080/api/meetings/${id}/${action}`,
         {
           method: "PATCH",
+          credentials: "include",
         }
       );
 
@@ -433,6 +436,35 @@ export default function MeetingSessionPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ============================================
+  // 編集者の変更
+  // ============================================
+  const handleChangeEditor = async (
+    userId: number | null
+  ) => {
+    const response = await fetch(
+      `http://localhost:8080/api/meetings/${id}/editor`,
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: userId,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const data = await response.json();
+      setErrorMessage(data.error);
+      return;
+    }
+
+    await fetchMeeting(false);
   };
 
   // ============================================
@@ -528,6 +560,11 @@ export default function MeetingSessionPage() {
       )
       : 0;
 
+  // 主催者を取得
+  const owner = members.find(
+    (member) => member.role === "owner"
+  );
+
   if (loading) {
     return <Loading />;
   }
@@ -568,8 +605,43 @@ export default function MeetingSessionPage() {
                 {meeting.description}
               </p>
             </div>
-          </div>
 
+            {/* 編集者の変更プルダウン */}
+            {meeting.current_user_role === "owner" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                編集者
+              </label>
+
+              <select
+                value={meeting.editor_user_id ?? ""}
+                onChange={(event) => {
+                  const userId = event.target.value
+                    ? Number(event.target.value)
+                    : null;
+
+                  handleChangeEditor(userId);
+                }}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2"
+              >
+                <option value="">
+                  {owner ? `${owner.name}（主催者）` : "主催者"}
+                </option>
+
+                {members
+                  .filter((member) => member.role !== "owner")
+                  .map((member) => (
+                    <option
+                      key={member.user_id}
+                      value={member.user_id}
+                    >
+                      {member.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            )}
+          </div>
 
           {/* タイマー */}
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -583,6 +655,7 @@ export default function MeetingSessionPage() {
               progress={meetingProgress}
               saving={saving}
               paused={meeting.paused_at !== null}
+              canEditSession={meeting.can_edit_session}
               formatTimer={formatTimer}
               onSave={handleSaveSession}
               onComplete={handleComplete}
@@ -664,6 +737,7 @@ export default function MeetingSessionPage() {
                       メモ
                     </h3>
 
+                    {meeting.can_edit_session ? (
                     <textarea
                       value={selectedAgenda.memo || ""}
                       rows={6}
@@ -678,6 +752,11 @@ export default function MeetingSessionPage() {
                       }}
                       className="w-full rounded-xl border border-slate-300 px-3 py-2"
                     />
+                    ) : (
+                      <p className="whitespace-pre-wrap text-slate-700">
+                        {selectedAgenda.memo || ""}
+                      </p>
+                    )}
                   </section>
                 </>
               ) : (
@@ -699,6 +778,7 @@ export default function MeetingSessionPage() {
                 決定事項
               </h2>
 
+              {meeting.can_edit_session ? (
               <textarea
                 value={meeting.decisions || ""}
                 rows={6}
@@ -707,6 +787,11 @@ export default function MeetingSessionPage() {
                 }}
                 className="w-full rounded-xl border border-slate-300 px-3 py-2"
               />
+              ) : (
+                <p className="whitespace-pre-wrap text-slate-700">
+                  {meeting.decisions || ""}
+                </p>
+              )}
             </div>
 
             <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-6 shadow-sm backdrop-blur-xl">
@@ -718,6 +803,7 @@ export default function MeetingSessionPage() {
                 TODO
               </h2>
 
+              {meeting.can_edit_session ? (
               <textarea
                 value={meeting.todo || ""}
                 rows={6}
@@ -726,6 +812,11 @@ export default function MeetingSessionPage() {
                 }}
                 className="w-full rounded-xl border border-slate-300 px-3 py-2"
               />
+              ) : (
+                <p className="whitespace-pre-wrap text-slate-700">
+                  {meeting.todo || ""}
+                </p>
+              )}
             </div>
           </div>
 

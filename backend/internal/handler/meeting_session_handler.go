@@ -19,8 +19,13 @@ import (
 // ============================================
 func StartMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
 
-		id, err := strconv.ParseInt(
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -34,11 +39,22 @@ func StartMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 			)
 		}
 
-		err = repository.StartMeeting(db, id)
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		err = repository.StartMeeting(db, meetingID)
 		if err != nil {
 			log.Printf(
 				"StartMeeting failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -50,16 +66,16 @@ func StartMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 		}
 
 		hub.Broadcast(
-			id,
+			meetingID,
 			wsHub.Event{
 				Type:      "meeting_started",
-				MeetingID: id,
+				MeetingID: meetingID,
 			},
 		)
 
 		log.Printf(
 			"StartMeeting success id=%d",
-			id,
+			meetingID,
 		)
 
 		return c.NoContent(http.StatusNoContent)
@@ -71,7 +87,13 @@ func StartMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 // ============================================
 func CompleteMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -90,12 +112,23 @@ func CompleteMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 			)
 		}
 
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
 		var req model.CompleteMeetingRequest
 
 		if err := c.Bind(&req); err != nil {
 			log.Printf(
 				"CompleteMeeting bind failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -106,10 +139,10 @@ func CompleteMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 			)
 		}
 
-		if err := repository.CompleteMeeting(db, id, req); err != nil {
+		if err := repository.CompleteMeeting(db, meetingID, req); err != nil {
 			log.Printf(
 				"CompleteMeeting failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -122,14 +155,14 @@ func CompleteMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 
 		// DB更新成功後に、同じ会議へ接続中のブラウザへ通知
 		hub.Broadcast(
-			id,
+			meetingID,
 			wsHub.Event{
 				Type:      "meeting_completed",
-				MeetingID: id,
+				MeetingID: meetingID,
 			},
 		)
 
-		log.Printf("CompleteMeeting success id=%d", id)
+		log.Printf("CompleteMeeting success id=%d", meetingID)
 
 		return c.NoContent(http.StatusNoContent)
 	}
@@ -140,7 +173,12 @@ func CompleteMeeting(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 // ============================================
 func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -159,12 +197,23 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 			)
 		}
 
-		meeting, err := repository.GetMeetingSessionByID(db, id)
+		// ログインユーザーの権限チェック
+		role, err := getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		meeting, err := repository.GetMeetingSessionByID(db, meetingID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				log.Printf(
 					"GetMeetingSessionByID not found id=%d",
-					id,
+					meetingID,
 				)
 				return c.JSON(
 					http.StatusNotFound,
@@ -176,7 +225,7 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 
 			log.Printf(
 				"GetMeetingSessionByID failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 			return c.JSON(
@@ -187,6 +236,14 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 			)
 		}
 
+		meeting.CurrentUserRole = role
+
+		// editorがいればeditorのみ編集可能
+		// editorがいなければownerが編集可能
+		meeting.CanEditSession =
+			role == "editor" ||
+				(role == "owner" && meeting.EditorUserID == nil)
+
 		return c.JSON(http.StatusOK, meeting)
 	}
 }
@@ -196,6 +253,11 @@ func GetMeetingSessionByID(db *sql.DB) echo.HandlerFunc {
 // ============================================
 func ChangeCurrentAgenda(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
 		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
@@ -213,6 +275,17 @@ func ChangeCurrentAgenda(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 					"error": "会議IDが不正です",
 				},
 			)
+		}
+
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
 		}
 
 		var req model.ChangeCurrentAgendaRequest
@@ -301,9 +374,15 @@ func ChangeCurrentAgenda(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 // ============================================
 func SaveMeetingSession(
 	db *sql.DB,
+	hub *wsHub.Hub,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -323,12 +402,53 @@ func SaveMeetingSession(
 			)
 		}
 
+		// ログインユーザーの権限チェック
+		role, err := getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		canEdit, err := canEditMeetingSession(
+			db,
+			meetingID,
+			userID,
+			role,
+		)
+		if err != nil {
+			log.Printf(
+				"SaveMeetingSession permission check failed meeting_id=%d user_id=%d err=%v",
+				meetingID,
+				userID,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusInternalServerError,
+				map[string]string{
+					"error": "編集権限の確認に失敗しました",
+				},
+			)
+		}
+		if !canEdit {
+			return c.JSON(
+				http.StatusForbidden,
+				map[string]string{
+					"error": "セッション内容を編集する権限がありません",
+				},
+			)
+		}
+
 		var req model.SaveMeetingSessionRequest
 
 		if err := c.Bind(&req); err != nil {
 			log.Printf(
 				"SaveMeetingSession bind failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 
@@ -340,10 +460,10 @@ func SaveMeetingSession(
 			)
 		}
 
-		if err := repository.SaveMeetingSession(db, id, req); err != nil {
+		if err := repository.SaveMeetingSession(db, meetingID, req); err != nil {
 			log.Printf(
 				"SaveMeetingSession failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 
@@ -354,6 +474,15 @@ func SaveMeetingSession(
 				},
 			)
 		}
+
+		// 同じ会議を開いている画面へ通知
+		hub.Broadcast(
+			meetingID,
+			wsHub.Event{
+				Type:      "meeting_session_saved",
+				MeetingID: meetingID,
+			},
+		)
 
 		return c.NoContent(http.StatusNoContent)
 	}
@@ -367,7 +496,12 @@ func PauseMeeting(
 	hub *wsHub.Hub,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -387,10 +521,21 @@ func PauseMeeting(
 			)
 		}
 
-		if err := repository.PauseMeeting(db, id); err != nil {
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		if err := repository.PauseMeeting(db, meetingID); err != nil {
 			log.Printf(
 				"PauseMeeting failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 
@@ -404,10 +549,10 @@ func PauseMeeting(
 
 		// 同じ会議を開いている画面へ通知
 		hub.Broadcast(
-			id,
+			meetingID,
 			wsHub.Event{
 				Type:      "meeting_paused",
-				MeetingID: id,
+				MeetingID: meetingID,
 			},
 		)
 
@@ -423,7 +568,12 @@ func ResumeMeeting(
 	hub *wsHub.Hub,
 ) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		id, err := strconv.ParseInt(
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
+		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
 			64,
@@ -443,10 +593,21 @@ func ResumeMeeting(
 			)
 		}
 
-		if err := repository.ResumeMeeting(db, id); err != nil {
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		if err := repository.ResumeMeeting(db, meetingID); err != nil {
 			log.Printf(
 				"ResumeMeeting failed id=%d err=%v",
-				id,
+				meetingID,
 				err,
 			)
 
@@ -460,10 +621,10 @@ func ResumeMeeting(
 
 		// 同じ会議を開いている画面へ再開を通知
 		hub.Broadcast(
-			id,
+			meetingID,
 			wsHub.Event{
 				Type:      "meeting_resumed",
-				MeetingID: id,
+				MeetingID: meetingID,
 			},
 		)
 

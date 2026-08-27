@@ -6,6 +6,7 @@ import { getStatusLabel, getStatusStyle } from "../utils/meetingStatus";
 import AgendaSidebar from "../components/AgendaSidebar";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import MeetingMemberList from "../components/MeetingMemberList";
 import {
   Play,
   ArrowLeft,
@@ -35,7 +36,10 @@ export default function MeetingDetailPage() {
         setErrorMessage("");
 
         const response = await fetch(
-          `http://localhost:8080/api/meetings/${id}`
+          `http://localhost:8080/api/meetings/${id}`,
+          {
+            credentials: "include",
+          }
         );
 
         const data = await response.json();
@@ -115,6 +119,7 @@ export default function MeetingDetailPage() {
       const response = await fetch(
         `http://localhost:8080/api/meetings/${id}`,
         {
+          credentials: "include",
           method: "DELETE",
         }
       );
@@ -147,6 +152,7 @@ export default function MeetingDetailPage() {
       const response = await fetch(
         `http://localhost:8080/api/meetings/${id}/start`,
         {
+          credentials: "include",
           method: "PATCH",
         }
       );
@@ -238,6 +244,7 @@ export default function MeetingDetailPage() {
                 編集
               </Link>
 
+              {meeting.current_user_role === "owner" && (
               <button
                 onClick={handleDelete}
                 disabled={saving}
@@ -245,6 +252,7 @@ export default function MeetingDetailPage() {
               >
                 {saving ? "処理中..." : "削除"}
               </button>
+              )}
             </div>
 
           </div>
@@ -394,6 +402,8 @@ export default function MeetingDetailPage() {
 
           </div>
 
+          {/* 参加メンバー */}
+          <MeetingMemberList meetingId={meeting.id} />
         </>
       )}
 

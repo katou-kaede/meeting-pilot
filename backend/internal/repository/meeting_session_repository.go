@@ -178,7 +178,15 @@ func GetMeetingSessionByID(
 			total_paused_seconds,
 			current_agenda_id,
 			COALESCE(decisions, ''),
-			COALESCE(todo, '')
+			COALESCE(todo, ''),
+			(
+				SELECT mm.user_id
+				FROM meeting_members mm
+				WHERE
+					mm.meeting_id = meetings.id
+					AND mm.role = 'editor'
+				LIMIT 1
+			) AS editor_user_id
 		FROM meetings
 		WHERE 
 			id = $1
@@ -195,6 +203,7 @@ func GetMeetingSessionByID(
 		&meeting.CurrentAgendaID,
 		&meeting.Decisions,
 		&meeting.Todo,
+		&meeting.EditorUserID,
 	)
 	if err != nil {
 		return nil, err

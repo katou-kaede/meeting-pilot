@@ -4,6 +4,7 @@ import type { AgendaForm, MeetingDetail } from "../types/meeting";
 import ErrorMessage from "../components/ErrorMessage";
 import MeetingForm from "../components/MeetingForm";
 import Loading from "../components/Loading";
+import MeetingMemberManager from "../components/MeetingMemberManager";
 import { ArrowLeft } from "lucide-react";
 
 export default function MeetingEditPage() {
@@ -35,7 +36,10 @@ export default function MeetingEditPage() {
         setErrorMessage("");
 
         const response = await fetch(
-          `http://localhost:8080/api/meetings/${id}`
+          `http://localhost:8080/api/meetings/${id}`,
+          {
+            credentials: "include",
+          }
         );
 
         const data = await response.json();
@@ -111,6 +115,7 @@ export default function MeetingEditPage() {
 
       const response = await fetch(`http://localhost:8080/api/meetings/${id}`, {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },
@@ -202,6 +207,8 @@ export default function MeetingEditPage() {
         agendas={agendas}
         setAgendas={setAgendas}
       />
+
+      <MeetingMemberManager meetingId={Number(id)} />
     </div>
   );
 }

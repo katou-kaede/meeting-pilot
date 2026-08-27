@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
@@ -18,8 +19,14 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func MeetingWebSocket(hub *wsHub.Hub) echo.HandlerFunc {
+func MeetingWebSocket(db *sql.DB, hub *wsHub.Hub) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// ログインユーザーIDを取得
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
 		meetingID, err := strconv.ParseInt(
 			c.Param("id"),
 			10,
@@ -39,6 +46,17 @@ func MeetingWebSocket(hub *wsHub.Hub) echo.HandlerFunc {
 			)
 		}
 
+		// ログインユーザーの権限チェック
+		_, err = getMeetingUserRole(
+			c,
+			db,
+			meetingID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
 		conn, err := upgrader.Upgrade(
 			c.Response(),
 			c.Request(),
@@ -56,6 +74,12 @@ func MeetingWebSocket(hub *wsHub.Hub) echo.HandlerFunc {
 
 		hub.AddClient(meetingID, conn)
 		defer hub.RemoveClient(meetingID, conn)
+
+		log.Printf(
+			"MeetingWebSocket connected meeting_id=%d user_id=%d",
+			meetingID,
+			userID,
+		)
 
 		// 接続が切れるまで待機する
 		for {
@@ -78,8 +102,9 @@ func MeetingWebSocket(hub *wsHub.Hub) echo.HandlerFunc {
 		}
 
 		log.Printf(
-			"MeetingWebSocket disconnected meeting_id=%d",
+			"MeetingWebSocket disconnected meeting_id=%d user_id=%d",
 			meetingID,
+			userID,
 		)
 
 		return nil

@@ -94,7 +94,7 @@ export default function UserCreatePage() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            MeetingPilotを利用するユーザーを登録します
+            MeetGuideを利用するユーザーを登録します
           </p>
         </div>
 

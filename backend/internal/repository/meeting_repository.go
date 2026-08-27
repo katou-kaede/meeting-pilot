@@ -10,20 +10,31 @@ import (
 // ============================================
 // ミーティング一覧取得
 // ============================================
-func GetMeetings(db *sql.DB) ([]model.Meeting, error) {
+func GetMeetings(db *sql.DB, userID int64) ([]model.Meeting, error) {
 	rows, err := db.Query(`
 		SELECT
-			id,
-			title,
-			COALESCE(target_name, ''),
-			scheduled_start_at,
-			planned_minutes,
-			COALESCE(decisions, ''),
-			COALESCE(todo, ''),
-			status
-		FROM meetings
-		ORDER BY id
-	`)
+			m.id,
+			m.title,
+			COALESCE(m.target_name, ''),
+			m.scheduled_start_at,
+			m.planned_minutes,
+			COALESCE(m.decisions, ''),
+			COALESCE(m.todo, ''),
+			m.status
+		FROM meetings m
+		WHERE
+			m.created_by = $1
+			OR EXISTS (
+				SELECT 1
+				FROM meeting_members mm
+				WHERE
+					mm.meeting_id = m.id
+					AND mm.user_id = $1
+			)
+		ORDER BY m.id
+	`,
+		userID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +60,9 @@ func GetMeetings(db *sql.DB) ([]model.Meeting, error) {
 		}
 
 		meetings = append(meetings, meeting)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return meetings, nil

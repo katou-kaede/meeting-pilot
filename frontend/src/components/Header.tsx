@@ -37,7 +37,7 @@ export default function Header() {
           </span>
 
           <p className="text-xl font-bold tracking-tight text-white">
-            MeetingPilot
+            MeetGuide
           </p>
         </button>
 

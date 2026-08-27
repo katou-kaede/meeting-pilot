@@ -158,3 +158,87 @@ func GetUserByID(
 
 	return &user, nil
 }
+
+// ============================================
+// ユーザー検索
+// ============================================
+func SearchUsersForMeeting(
+	db *sql.DB,
+	meetingID int64,
+	keyword string,
+) ([]model.User, error) {
+	searchKeyword := strings.TrimSpace(keyword)
+
+	rows, err := db.Query(`
+		SELECT
+			u.id,
+			u.name,
+			u.email,
+			u.password_hash,
+			u.is_active,
+			u.created_at,
+			u.updated_at
+		FROM users u
+		WHERE
+			u.is_active = TRUE
+
+			-- 会議のownerを除外
+			AND NOT EXISTS (
+				SELECT 1
+				FROM meetings m
+				WHERE
+					m.id = $1
+					AND m.created_by = u.id
+			)
+
+			-- 追加済みメンバーを除外
+			AND NOT EXISTS (
+				SELECT 1
+				FROM meeting_members mm
+				WHERE
+					mm.meeting_id = $1
+					AND mm.user_id = u.id
+			)
+
+			-- 氏名またはメールアドレスで部分一致
+			AND (
+				u.name ILIKE '%' || $2 || '%'
+				OR u.email ILIKE '%' || $2 || '%'
+			)
+		ORDER BY u.name
+		LIMIT 20
+	`,
+		meetingID,
+		searchKeyword,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := make([]model.User, 0)
+
+	for rows.Next() {
+		var user model.User
+
+		if err := rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.PasswordHash,
+			&user.IsActive,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

@@ -12,6 +12,7 @@ type Props = {
   progress: number;
   saving: boolean;
   paused: boolean;
+  canEditSession: boolean;
   formatTimer: (seconds: number) => string;
   onSave: () => void;
   onComplete: () => void;
@@ -26,6 +27,7 @@ export default function MeetingTimerCard({
   progress,
   saving,
   paused,
+  canEditSession,
   formatTimer,
   onSave,
   onComplete,
@@ -57,7 +59,7 @@ export default function MeetingTimerCard({
             <button
               type="button"
               onClick={onSave}
-              disabled={saving}
+              disabled={!canEditSession || saving}
               className="cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-2 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "処理中..." : "一時保存"}

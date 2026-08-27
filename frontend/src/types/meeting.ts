@@ -48,6 +48,7 @@ export type MeetingDetail = {
   todo: string;
   status: string;
   agendas: Agenda[];
+  current_user_role: "owner" | "editor" | "viewer";
 };
 
 // ============================================
@@ -80,4 +81,7 @@ export type MeetingSessionDetail = {
   decisions: string;
   todo: string;
   agendas: AgendaSessionDetail[];
+  editor_user_id: number | null;
+  current_user_role: "owner" | "editor" | "viewer";
+  can_edit_session: boolean;
 };
