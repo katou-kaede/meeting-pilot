@@ -106,11 +106,12 @@ export default function LoginPage() {
           className="space-y-5"
         >
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email">
               メールアドレス
             </label>
 
             <input
+              id="email"
               type="email"
               value={email}
               onChange={(event) =>
@@ -123,11 +124,12 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="password">
               パスワード
             </label>
 
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(event) =>

@@ -276,7 +276,7 @@ export default function MeetingForm({
 							/>
 
 							<label className="mb-1 block text-sm font-medium text-slate-700">
-								概要
+								目的
 							</label>
 
 							<textarea
@@ -291,7 +291,7 @@ export default function MeetingForm({
 							<div className="grid gap-5 lg:grid-cols-2 items-stretch">
 								<section className="h-full rounded-2xl">
 									<label className="mb-1 block text-sm font-medium text-slate-700">
-										議論ポイント
+										トピック
 									</label>
 
 									<textarea

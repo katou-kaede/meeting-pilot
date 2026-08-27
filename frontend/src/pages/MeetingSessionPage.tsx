@@ -7,6 +7,8 @@ import Loading from "../components/Loading";
 import AgendaSidebar from "../components/AgendaSidebar";
 import AgendaTimerCard from "../components/AgendaTimerCard";
 import MeetingTimerCard from "../components/MeetingTimerCard";
+import SessionResultForm from "../components/SessionResultForm";
+import SessionEditorSelector from "../components/SessionEditorSelector";
 import { ArrowLeft } from "lucide-react";
 import { useMeetingSessionWebSocket } from "../hooks/useMeetingSessionWebSocket";
 
@@ -560,11 +562,6 @@ export default function MeetingSessionPage() {
       )
       : 0;
 
-  // 主催者を取得
-  const owner = members.find(
-    (member) => member.role === "owner"
-  );
-
   if (loading) {
     return <Loading />;
   }
@@ -607,40 +604,12 @@ export default function MeetingSessionPage() {
             </div>
 
             {/* 編集者の変更プルダウン */}
-            {meeting.current_user_role === "owner" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                編集者
-              </label>
-
-              <select
-                value={meeting.editor_user_id ?? ""}
-                onChange={(event) => {
-                  const userId = event.target.value
-                    ? Number(event.target.value)
-                    : null;
-
-                  handleChangeEditor(userId);
-                }}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2"
-              >
-                <option value="">
-                  {owner ? `${owner.name}（主催者）` : "主催者"}
-                </option>
-
-                {members
-                  .filter((member) => member.role !== "owner")
-                  .map((member) => (
-                    <option
-                      key={member.user_id}
-                      value={member.user_id}
-                    >
-                      {member.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            )}
+            <SessionEditorSelector
+              currentUserRole={meeting.current_user_role}
+              editorUserId={meeting.editor_user_id}
+              members={members}
+              onChangeEditor={handleChangeEditor}
+            />
           </div>
 
           {/* タイマー */}
@@ -707,13 +676,13 @@ export default function MeetingSessionPage() {
                   </div>
 
                   <h3 className="mt-4 font-semibold text-slate-500">
-                    概要：{selectedAgenda.purpose || ""}
+                    目的：{selectedAgenda.purpose || ""}
                   </h3>
 
                   <div className="mt-5 grid gap-5 lg:grid-cols-2 items-stretch">
                     <section className="h-full rounded-2xl border border-slate-200 bg-slate-50 p-5">
                       <h3 className="mb-2 font-semibold text-slate-900">
-                        議論ポイント
+                        トピック
                       </h3>
 
                       <p className="whitespace-pre-wrap text-slate-700">
@@ -768,57 +737,17 @@ export default function MeetingSessionPage() {
           </div>
 
           {/* 会議後入力項目 */}
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-6 shadow-sm backdrop-blur-xl">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-600">
-                Meeting Result
-              </p>
-
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">
-                決定事項
-              </h2>
-
-              {meeting.can_edit_session ? (
-              <textarea
-                value={meeting.decisions || ""}
-                rows={6}
-                onChange={(e) => {
-                  setMeeting({ ...meeting, decisions: e.target.value });
-                }}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2"
-              />
-              ) : (
-                <p className="whitespace-pre-wrap text-slate-700">
-                  {meeting.decisions || ""}
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-6 shadow-sm backdrop-blur-xl">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-600">
-                Next Action
-              </p>
-
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">
-                TODO
-              </h2>
-
-              {meeting.can_edit_session ? (
-              <textarea
-                value={meeting.todo || ""}
-                rows={6}
-                onChange={(e) => {
-                  setMeeting({ ...meeting, todo: e.target.value });
-                }}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2"
-              />
-              ) : (
-                <p className="whitespace-pre-wrap text-slate-700">
-                  {meeting.todo || ""}
-                </p>
-              )}
-            </div>
-          </div>
+          <SessionResultForm
+            decisions={meeting.decisions || ""}
+            todo={meeting.todo || ""}
+            canEditSession={meeting.can_edit_session}
+            onDecisionsChange={(value) => {
+              setMeeting({...meeting, decisions: value});
+            }}
+            onTodoChange={(value) => {
+              setMeeting({...meeting, todo: value});
+            }}
+          />
 
         </>
       )}

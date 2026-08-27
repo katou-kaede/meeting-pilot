@@ -356,13 +356,13 @@ export default function MeetingDetailPage() {
                     </div>
 
                     <h3 className="mt-4 font-semibold text-slate-500">
-                      概要：{selectedAgenda.purpose || ""}
+                      目的：{selectedAgenda.purpose || ""}
                     </h3>
 
                     <div className="mt-5 grid gap-5 lg:grid-cols-2 items-stretch">
                       <section className="h-full rounded-2xl border border-slate-200 bg-slate-50 p-5">
                         <h3 className="mb-2 font-semibold text-slate-900">
-                          議論ポイント
+                          トピック
                         </h3>
 
                         <p className="whitespace-pre-wrap text-slate-700">
