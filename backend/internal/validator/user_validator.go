@@ -35,13 +35,24 @@ func ValidateCreateUser(
 		return errors.New("メールアドレスの形式が正しくありません")
 	}
 
-	if len(req.Password) < 8 {
-		return errors.New("パスワードは8文字以上で入力してください")
+	for _, r := range req.Password {
+		if r < 0x21 || r > 0x7E {
+			return errors.New(
+				"パスワードは半角英数字・記号で入力してください",
+			)
+		}
 	}
 
-	// bcryptは72バイトを超えるパスワードを受け付けない
-	if len([]byte(req.Password)) > 72 {
-		return errors.New("パスワードが長すぎます")
+	if len(req.Password) < 8 {
+		return errors.New(
+			"パスワードは8文字以上で入力してください",
+		)
+	}
+
+	if len(req.Password) > 72 {
+		return errors.New(
+			"パスワードは72文字以内で入力してください",
+		)
 	}
 
 	return nil

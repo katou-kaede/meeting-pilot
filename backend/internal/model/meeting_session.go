@@ -59,3 +59,17 @@ type SaveMeetingSessionRequest struct {
 	Todo      string                     `json:"todo"`
 	Agendas   []SaveAgendaSessionRequest `json:"agendas"`
 }
+
+// ============================================
+// 会議終了
+// ============================================
+type CompleteMeetingRequest struct {
+	Decisions string                `json:"decisions"`
+	Todo      string                `json:"todo"`
+	Agendas   []CompleteAgendaRequest `json:"agendas"`
+}
+
+type CompleteAgendaRequest struct {
+	ID   int64 `json:"id"`
+	Memo string `json:"memo"`
+}

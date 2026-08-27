@@ -276,7 +276,7 @@ export default function MeetingForm({
 							/>
 
 							<label className="mb-1 block text-sm font-medium text-slate-700">
-								目的
+								概要
 							</label>
 
 							<textarea

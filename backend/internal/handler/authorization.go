@@ -94,11 +94,23 @@ func canEditMeetingSession(
 		return false, err
 	}
 
-	// editor設定済みなら、そのeditor本人だけ
+	return hasMeetingSessionEditPermission(
+		role,
+		userID,
+		editorUserID,
+	), nil
+}
+
+func hasMeetingSessionEditPermission(
+	role string,
+	userID int64,
+	editorUserID *int64,
+) bool {
+	// editor設定済みなら、そのeditor本人だけ編集可能
 	if editorUserID != nil {
-		return *editorUserID == userID, nil
+		return *editorUserID == userID
 	}
 
-	// editor未設定ならownerだけ
-	return role == "owner", nil
+	// editor未設定ならownerだけ編集可能
+	return role == "owner"
 }

@@ -89,17 +89,3 @@ type UpdateAgendaRequest struct {
 	Memo             string `json:"memo"`
 	PlannedMinutes   int    `json:"planned_minutes"`
 }
-
-// ============================================
-// 完了
-// ============================================
-type CompleteMeetingRequest struct {
-	Decisions string                `json:"decisions"`
-	Todo      string                `json:"todo"`
-	Agendas   []UpdateAgendaRequest `json:"agendas"`
-}
-
-type CompleteAgendaRequest struct {
-	ID   *int64 `json:"id"`
-	Memo string `json:"memo"`
-}
