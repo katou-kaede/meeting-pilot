@@ -201,10 +201,13 @@ func SearchUsersForMeeting(
 			)
 
 			-- 氏名またはメールアドレスで部分一致
-			AND (
-				u.name ILIKE '%' || $2 || '%'
-				OR u.email ILIKE '%' || $2 || '%'
-			)
+			-- AND (
+			-- 	u.name ILIKE '%' || $2 || '%'
+			-- 	OR u.email ILIKE '%' || $2 || '%'
+			-- )
+
+			-- メールアドレスの完全一致
+			AND LOWER(u.email) = LOWER($2)
 		ORDER BY u.name
 		LIMIT 20
 	`,

@@ -258,7 +258,7 @@ export default function MeetingMemberManager({
                   handleSearch();
                 }
               }}
-              placeholder="氏名またはメールアドレス"
+              placeholder="メールアドレスを入力"
               className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3"
             />
           </div>
