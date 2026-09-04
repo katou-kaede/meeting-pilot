@@ -59,6 +59,7 @@ describe("LoginPage", () => {
       login: loginMock,
       logout: vi.fn(),
       fetchCurrentUser: vi.fn(),
+      deactivateAccount: vi.fn(),
     });
 
     renderLoginPage();
@@ -96,11 +97,12 @@ describe("LoginPage", () => {
         );
 
         mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        login: loginMock,
-        logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
+          user: null,
+          loading: false,
+          login: loginMock,
+          logout: vi.fn(),
+          fetchCurrentUser: vi.fn(),
+          deactivateAccount: vi.fn(),
         });
 
         renderLoginPage();
@@ -140,11 +142,12 @@ describe("LoginPage", () => {
         const loginMock = vi.fn().mockResolvedValue(undefined);
 
         mockUseAuth.mockReturnValue({
-        user: null,
-        loading: false,
-        login: loginMock,
-        logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
+          user: null,
+          loading: false,
+          login: loginMock,
+          logout: vi.fn(),
+          fetchCurrentUser: vi.fn(),
+          deactivateAccount: vi.fn(),
         });
 
         renderLoginPage();
