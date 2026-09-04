@@ -1,4 +1,4 @@
-# MeetingGuide
+# MeetingPilot
 
 会議の準備から進行、記録までを一元管理する会議管理アプリケーションです。
 

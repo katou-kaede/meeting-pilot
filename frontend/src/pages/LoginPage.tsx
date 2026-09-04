@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [successMessage, setSuccessMessage] = useState(
     (location.state as { message?: string } | null)?.message ?? ""
   );
-  
+
   const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-slate-900">
-            MeetGide
+            Meeting Pilot
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
