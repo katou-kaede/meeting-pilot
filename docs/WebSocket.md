@@ -59,8 +59,3 @@ AddClient() は、WebSocketで通知を送る相手を会議ごとに記録し�
 ```bash
 go get github.com/gorilla/websocket
 ```
-
-
-
-
-
