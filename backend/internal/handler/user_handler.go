@@ -86,8 +86,6 @@ func CreateUser(db *sql.DB) echo.HandlerFunc {
 // ============================================
 func Login(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
-
 		var req model.LoginRequest
 
 		if err := c.Bind(&req); err != nil {
@@ -172,6 +170,12 @@ func Login(db *sql.DB) echo.HandlerFunc {
 			)
 		}
 
+		cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
+		sameSite := http.SameSiteLaxMode
+		if cookieSecure {
+				sameSite = http.SameSiteNoneMode
+		}
+
 		// JWTをHttpOnly Cookieへ保存
 		c.SetCookie(&http.Cookie{
 			Name:     "access_token",
@@ -179,7 +183,7 @@ func Login(db *sql.DB) echo.HandlerFunc {
 			Path:     "/",
 			HttpOnly: true,
 			Secure:   cookieSecure, // 本番のHTTPS環境ではtrue(そのCookieをHTTPS通信のときだけ送信するか)
-			SameSite: http.SameSiteLaxMode,
+			SameSite: sameSite,
 			MaxAge:   60 * 60, // 1時間
 		})
 
@@ -255,6 +259,10 @@ func GetCurrentUser(db *sql.DB) echo.HandlerFunc {
 func Logout() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
+		sameSite := http.SameSiteLaxMode
+		if cookieSecure {
+				sameSite = http.SameSiteNoneMode
+		}
 
 		c.SetCookie(&http.Cookie{
 			Name:     "access_token",
@@ -262,7 +270,7 @@ func Logout() echo.HandlerFunc {
 			Path:     "/",
 			HttpOnly: true,
 			Secure:   cookieSecure, // 本番HTTPSではtrue
-			SameSite: http.SameSiteLaxMode,
+			SameSite: sameSite,
 			MaxAge:   -1,
 		})
 
@@ -393,6 +401,10 @@ func DeactivateCurrentUser(db *sql.DB) echo.HandlerFunc {
 
 		// 認証Cookieを削除
 		cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
+		sameSite := http.SameSiteLaxMode
+		if cookieSecure {
+				sameSite = http.SameSiteNoneMode
+		}
 
 		c.SetCookie(&http.Cookie{
 			Name:     "access_token",
@@ -400,7 +412,7 @@ func DeactivateCurrentUser(db *sql.DB) echo.HandlerFunc {
 			Path:     "/",
 			HttpOnly: true,
 			Secure:   cookieSecure,
-			SameSite: http.SameSiteLaxMode,
+			SameSite: sameSite,
 			MaxAge:   -1,
 		})
 
