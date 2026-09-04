@@ -59,6 +59,7 @@ describe("ProtectedRoute", () => {
       login: vi.fn(),
       logout: vi.fn(),
       fetchCurrentUser: vi.fn(),
+      deactivateAccount: vi.fn(),
     });
 
     renderProtectedRoute();
@@ -79,6 +80,7 @@ describe("ProtectedRoute", () => {
       login: vi.fn(),
       logout: vi.fn(),
       fetchCurrentUser: vi.fn(),
+      deactivateAccount: vi.fn(),
     });
 
     renderProtectedRoute();
@@ -110,6 +112,7 @@ describe("ProtectedRoute", () => {
       login: vi.fn(),
       logout: vi.fn(),
       fetchCurrentUser: vi.fn(),
+      deactivateAccount: vi.fn(),
     });
 
     renderProtectedRoute();

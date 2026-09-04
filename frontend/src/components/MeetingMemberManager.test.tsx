@@ -56,6 +56,7 @@ beforeEach(() => {
     login: vi.fn(),
     logout: vi.fn(),
     fetchCurrentUser: vi.fn(),
+    deactivateAccount: vi.fn(),
   });
 });
 
