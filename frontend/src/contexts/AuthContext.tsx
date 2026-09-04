@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import type { User } from "../types/user";
+import { API_BASE_URL } from "../config/env";
 
 type AuthContextType = {
   user: User | null;
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: Props) {
   const fetchCurrentUser = async () => {
     try {
       const response = await fetch(
-        "http://localhost:8080/api/me",
+        `${API_BASE_URL}/api/me`,
         {
           credentials: "include",
         }
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: Props) {
     password: string
   ) => {
     const response = await fetch(
-      "http://localhost:8080/api/login",
+      `${API_BASE_URL}/api/login`,
       {
         method: "POST",
         headers: {
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: Props) {
 
   const logout = async () => {
     const response = await fetch(
-        "http://localhost:8080/api/logout",
+        `${API_BASE_URL}/api/logout`,
         {
         method: "POST",
         credentials: "include",

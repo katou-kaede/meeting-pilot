@@ -478,8 +478,8 @@ npm run test:run
 
 ## 今後の改善予定
 
-- CI設定
-- 本番ビルド確認
+- ~~CI設定~~
+- ~~本番ビルド確認~~
   - npm run build
   - go build ./...
 - API・WebSocket URLの環境変数化

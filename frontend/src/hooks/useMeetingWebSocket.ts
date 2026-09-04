@@ -1,14 +1,17 @@
 import { useEffect } from "react";
+import { WS_BASE_URL } from "../config/env";
 
 type Props = {
   meetingId: string | undefined;
-  onSessionUpdated: () => void;
-  onMeetingCompleted: () => void;
+  onMeetingStarted?: () => void;
+  onSessionUpdated?: () => void;
+  onMeetingCompleted?: () => void;
   onConnectionError: (message: string) => void;
 };
 
-export function useMeetingSessionWebSocket({
+export function useMeetingWebSocket({
   meetingId,
+  onMeetingStarted,
   onSessionUpdated,
   onMeetingCompleted,
   onConnectionError,
@@ -17,7 +20,7 @@ export function useMeetingSessionWebSocket({
     if (!meetingId) return;
 
     const socket = new WebSocket(
-      `ws://localhost:8080/ws/meetings/${meetingId}`
+      `${WS_BASE_URL}/ws/meetings/${meetingId}`
     );
 
     socket.onopen = () => {
@@ -30,16 +33,20 @@ export function useMeetingSessionWebSocket({
         const message = JSON.parse(event.data);
 
         switch (message.type) {
+          case "meeting_started":
+            onMeetingStarted?.();
+            break;
+
           case "current_agenda_changed":
           case "meeting_paused":
           case "meeting_resumed":
           case "meeting_session_saved":
           case "meeting_editor_changed":
-            onSessionUpdated();
+            onSessionUpdated?.();
             break;
 
           case "meeting_completed":
-            onMeetingCompleted();
+            onMeetingCompleted?.();
             break;
         }
       } catch (error) {
@@ -76,6 +83,7 @@ export function useMeetingSessionWebSocket({
     };
   }, [
     meetingId,
+    onMeetingStarted,
     onSessionUpdated,
     onMeetingCompleted,
     onConnectionError,

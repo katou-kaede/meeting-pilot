@@ -12,6 +12,7 @@ import type {
 } from "../types/user";
 import ErrorMessage from "./ErrorMessage";
 import { useAuth } from "./../contexts/AuthContext";
+import { API_BASE_URL } from "../config/env";
 import { useNavigate } from "react-router-dom";
 
 type Props = {
@@ -50,7 +51,7 @@ export default function MeetingMemberManager({
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${meetingId}/members`,
+        `${API_BASE_URL}/api/meetings/${meetingId}/members`,
         {
           credentials: "include",
         }
@@ -91,7 +92,7 @@ export default function MeetingMemberManager({
       });
 
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${meetingId}/member-candidates?${params}`,
+        `${API_BASE_URL}/api/meetings/${meetingId}/member-candidates?${params}`,
         {
           credentials: "include",
         }
@@ -129,7 +130,7 @@ export default function MeetingMemberManager({
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${meetingId}/members`,
+        `${API_BASE_URL}/api/meetings/${meetingId}/members`,
         {
           method: "POST",
           credentials: "include",
@@ -190,7 +191,7 @@ export default function MeetingMemberManager({
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${meetingId}/members/${member.user_id}`,
+        `${API_BASE_URL}/api/meetings/${meetingId}/members/${member.user_id}`,
         {
           method: "DELETE",
           credentials: "include",

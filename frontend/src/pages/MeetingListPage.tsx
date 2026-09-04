@@ -5,6 +5,7 @@ import { formatDateTime } from "../utils/common";
 import { getStatusLabel, getStatusStyle } from "../utils/meetingStatus";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import { API_BASE_URL } from "../config/env";
 
 
 export default function MeetingListPage() {
@@ -18,7 +19,7 @@ export default function MeetingListPage() {
     const fetchMeetings = async () => {
       try {
         const response = await fetch(
-          "http://localhost:8080/api/meetings", 
+          `${API_BASE_URL}/api/meetings`, 
           {
             credentials: "include",
           }

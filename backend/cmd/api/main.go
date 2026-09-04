@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -27,13 +28,26 @@ func main() {
 
 	e := echo.New()
 
+	frontendOrigin := os.Getenv("FRONTEND_ORIGIN")
+	if frontendOrigin == "" {
+		frontendOrigin = "http://localhost:5173"
+	}
+
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(
 		middleware.CORSConfig{
-			AllowOrigins: []string{
-				"http://localhost:5173",
-			},
+			AllowOrigins: []string{ frontendOrigin },
 			AllowMethods: []string{
 				http.MethodGet,
 				http.MethodPost,
@@ -101,5 +115,5 @@ func main() {
 		})
 	})
 
-	e.Logger.Fatal(e.Start("127.0.0.1:8080"))
+	e.Logger.Fatal(e.Start(host + ":" + port))
 }

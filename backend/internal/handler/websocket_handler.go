@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"os"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
@@ -14,8 +15,12 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// 開発中は許可。本番では接続元を制限する
-		return true
+		allowedOrigin := os.Getenv("FRONTEND_ORIGIN")
+		if allowedOrigin == "" {
+			allowedOrigin = "http://localhost:5173"
+		}
+		// 指定したフロントエンドのURLからの接続のみ許可する
+		return r.Header.Get("Origin") == allowedOrigin
 	},
 }
 

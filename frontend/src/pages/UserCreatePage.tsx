@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import { API_BASE_URL } from "../config/env";
 
 export default function UserCreatePage() {
   const { user, loading } = useAuth();
@@ -36,7 +37,7 @@ export default function UserCreatePage() {
 
     try {
       const response = await fetch(
-        "http://localhost:8080/api/users",
+        `${API_BASE_URL}/api/users`,
         {
           method: "POST",
           headers: {

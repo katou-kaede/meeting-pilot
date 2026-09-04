@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"os"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -16,12 +17,11 @@ import (
 	"meeting-pilot/internal/validator"
 )
 
+
 // ============================================
 // ユーザー登録
 // ============================================
-func CreateUser(
-	db *sql.DB,
-) echo.HandlerFunc {
+func CreateUser(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var req model.CreateUserRequest
 
@@ -84,10 +84,10 @@ func CreateUser(
 // ============================================
 // ログイン
 // ============================================
-func Login(
-	db *sql.DB,
-) echo.HandlerFunc {
+func Login(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
+
 		var req model.LoginRequest
 
 		if err := c.Bind(&req); err != nil {
@@ -178,7 +178,7 @@ func Login(
 			Value:    token,
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   false, // 本番のHTTPS環境ではtrue(そのCookieをHTTPS通信のときだけ送信するか)
+			Secure:   cookieSecure, // 本番のHTTPS環境ではtrue(そのCookieをHTTPS通信のときだけ送信するか)
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   60 * 60, // 1時間
 		})
@@ -197,9 +197,7 @@ func Login(
 // ============================================
 // ログイン後の認証ユーザー情報取得
 // ============================================
-func GetCurrentUser(
-	db *sql.DB,
-) echo.HandlerFunc {
+func GetCurrentUser(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// ログインユーザーIDを取得
 		userID, err := getAuthenticatedUserID(c)
@@ -256,12 +254,14 @@ func GetCurrentUser(
 // ============================================
 func Logout() echo.HandlerFunc {
 	return func(c echo.Context) error {
+		cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
+
 		c.SetCookie(&http.Cookie{
 			Name:     "access_token",
 			Value:    "",
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   false, // 本番HTTPSではtrue
+			Secure:   cookieSecure, // 本番HTTPSではtrue
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   -1,
 		})

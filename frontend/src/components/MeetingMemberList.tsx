@@ -3,6 +3,7 @@ import { UserRound } from "lucide-react";
 
 import type { MeetingMember } from "../types/user";
 import ErrorMessage from "./ErrorMessage";
+import { API_BASE_URL } from "../config/env";
 
 type Props = {
   meetingId: number;
@@ -21,7 +22,7 @@ export default function MeetingMemberList({
 
       try {
         const response = await fetch(
-          `http://localhost:8080/api/meetings/${meetingId}/members`,
+          `${API_BASE_URL}/api/meetings/${meetingId}/members`,
           {
             credentials: "include",
           }

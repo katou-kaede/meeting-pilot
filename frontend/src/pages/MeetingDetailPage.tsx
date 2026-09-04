@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import type { MeetingDetail } from "../types/meeting";
 import { formatDateTime } from "../utils/common";
@@ -6,7 +6,9 @@ import { getStatusLabel, getStatusStyle } from "../utils/meetingStatus";
 import AgendaSidebar from "../components/AgendaSidebar";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import { API_BASE_URL } from "../config/env";
 import MeetingMemberList from "../components/MeetingMemberList";
+import { useMeetingWebSocket } from "../hooks/useMeetingWebSocket";
 import {
   Play,
   ArrowLeft,
@@ -36,7 +38,7 @@ export default function MeetingDetailPage() {
         setErrorMessage("");
 
         const response = await fetch(
-          `http://localhost:8080/api/meetings/${id}`,
+          `${API_BASE_URL}/api/meetings/${id}`,
           {
             credentials: "include",
           }
@@ -64,47 +66,22 @@ export default function MeetingDetailPage() {
   }, [id]);
 
   // WebSocket接続用のuseEffect
-  useEffect(() => {
-    if (!id) return;
+  const handleMeetingStarted = useCallback(() => {
+    navigate(`/meetings/${id}/session`);
+  }, [navigate, id]);
 
-    const socket = new WebSocket(
-      `ws://localhost:8080/ws/meetings/${id}`
-    );
+  const handleConnectionError = useCallback(
+    (message: string) => {
+      setConnectionError(message);
+    },
+    []
+  );
 
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-
-        if (message.type === "meeting_started") {
-          navigate(`/meetings/${id}/session`);
-        }
-      } catch (error) {
-        console.error(
-          "WebSocket message parse failed:",
-          error
-        );
-      }
-    };
-
-    socket.onerror = (error) => {
-      setConnectionError("リアルタイム接続に問題が発生しました");
-      console.error("WebSocket error:", error);
-    };
-
-    socket.onclose = (event) => {
-      console.log("WebSocket disconnected", event.code);
-
-      if (event.code !== 1000) {
-        setConnectionError(
-          "リアルタイム接続が切断されました。画面を再読み込みしてください"
-        );
-      }
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [id, navigate]);
+  useMeetingWebSocket({
+    meetingId: id,
+    onMeetingStarted: handleMeetingStarted,
+    onConnectionError: handleConnectionError,
+  });
 
   // 削除処理
   const handleDelete = async () => {
@@ -117,7 +94,7 @@ export default function MeetingDetailPage() {
       setSaving(true);
 
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}`,
+        `${API_BASE_URL}/api/meetings/${id}`,
         {
           credentials: "include",
           method: "DELETE",
@@ -150,7 +127,7 @@ export default function MeetingDetailPage() {
       setSaving(true);
 
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/start`,
+        `${API_BASE_URL}/api/meetings/${id}/start`,
         {
           credentials: "include",
           method: "PATCH",

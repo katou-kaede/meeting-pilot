@@ -9,8 +9,9 @@ import AgendaTimerCard from "../components/AgendaTimerCard";
 import MeetingTimerCard from "../components/MeetingTimerCard";
 import SessionResultForm from "../components/SessionResultForm";
 import SessionEditorSelector from "../components/SessionEditorSelector";
+import { API_BASE_URL } from "../config/env";
 import { ArrowLeft } from "lucide-react";
-import { useMeetingSessionWebSocket } from "../hooks/useMeetingSessionWebSocket";
+import { useMeetingWebSocket } from "../hooks/useMeetingWebSocket";
 
 export default function MeetingSessionPage() {
   // ============================================
@@ -54,7 +55,7 @@ export default function MeetingSessionPage() {
     try {
 
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/session`, 
+        `${API_BASE_URL}/api/meetings/${id}/session`, 
         {
           credentials: "include",
         }
@@ -136,7 +137,7 @@ export default function MeetingSessionPage() {
   const fetchMembers = useCallback(async () => {
     try {
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/members`,
+        `${API_BASE_URL}/api/meetings/${id}/members`,
         {
           credentials: "include",
         }
@@ -180,7 +181,7 @@ export default function MeetingSessionPage() {
     []
   );
 
-  useMeetingSessionWebSocket({
+  useMeetingWebSocket({
     meetingId: id,
     onSessionUpdated: handleSessionUpdated,
     onMeetingCompleted: handleMeetingCompleted,
@@ -251,7 +252,7 @@ export default function MeetingSessionPage() {
       setSaving(true);
 
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/complete`,
+        `${API_BASE_URL}/api/meetings/${id}/complete`,
         {
           method: "PATCH",
           credentials: "include",
@@ -298,7 +299,7 @@ export default function MeetingSessionPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/session`,
+        `${API_BASE_URL}/api/meetings/${id}/session`,
         {
           method: "PATCH",
           credentials: "include",
@@ -345,7 +346,7 @@ export default function MeetingSessionPage() {
       setErrorMessage("");
 
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/current-agenda`,
+        `${API_BASE_URL}/api/meetings/${id}/current-agenda`,
         {
           method: "PATCH",
           credentials: "include",
@@ -405,7 +406,7 @@ export default function MeetingSessionPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/meetings/${id}/${action}`,
+        `${API_BASE_URL}/api/meetings/${id}/${action}`,
         {
           method: "PATCH",
           credentials: "include",
@@ -447,7 +448,7 @@ export default function MeetingSessionPage() {
     userId: number | null
   ) => {
     const response = await fetch(
-      `http://localhost:8080/api/meetings/${id}/editor`,
+      `${API_BASE_URL}/api/meetings/${id}/editor`,
       {
         method: "PATCH",
         credentials: "include",

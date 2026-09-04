@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import type { AgendaForm } from "../types/meeting";
+import { API_BASE_URL } from "../config/env";
 import ErrorMessage from "../components/ErrorMessage";
 import MeetingForm from "../components/MeetingForm";
 import { ArrowLeft } from "lucide-react";
@@ -55,7 +56,7 @@ export default function MeetingCreatePage() {
       setErrorMessage("");
       setSaving(true);
 
-      const response = await fetch("http://localhost:8080/api/meetings", {
+      const response = await fetch(`${API_BASE_URL}/api/meetings`, {
         method: "POST",
         credentials: "include",
         headers: {

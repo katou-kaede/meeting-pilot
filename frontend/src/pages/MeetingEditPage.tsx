@@ -4,6 +4,7 @@ import type { AgendaForm, MeetingDetail } from "../types/meeting";
 import ErrorMessage from "../components/ErrorMessage";
 import MeetingForm from "../components/MeetingForm";
 import Loading from "../components/Loading";
+import { API_BASE_URL } from "../config/env";
 import MeetingMemberManager from "../components/MeetingMemberManager";
 import { ArrowLeft } from "lucide-react";
 
@@ -36,7 +37,7 @@ export default function MeetingEditPage() {
         setErrorMessage("");
 
         const response = await fetch(
-          `http://localhost:8080/api/meetings/${id}`,
+          `${API_BASE_URL}/api/meetings/${id}`,
           {
             credentials: "include",
           }
@@ -113,7 +114,7 @@ export default function MeetingEditPage() {
       setErrorMessage("");
       setSaving(true);
 
-      const response = await fetch(`http://localhost:8080/api/meetings/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/meetings/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: {
