@@ -482,8 +482,8 @@ npm run test:run
 - ~~本番ビルド確認~~
   - npm run build
   - go build ./...
-- API・WebSocket URLの環境変数化
-- ユーザー削除
+- ~~API・WebSocket URLの環境変数化~~
+- ~~ユーザー削除~~
 - デプロイ
 
 - WebSocket切断時の自動再接続

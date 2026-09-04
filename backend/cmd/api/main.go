@@ -97,6 +97,7 @@ func main() {
 	e.POST("/api/login", handler.Login(db))                                   // ログイン
 	e.GET("/api/me", handler.GetCurrentUser(db), appMiddleware.RequireAuth()) // ログイン後の認証ユーザー情報取得
 	e.POST("/api/logout", handler.Logout())                                   // ログアウト
+	e.DELETE("/api/me", handler.DeactivateCurrentUser(db), appMiddleware.RequireAuth()) // ユーザー削除
 
 	e.GET("/api/meetings/:id/members",
 		handler.GetMeetingMembers(db), appMiddleware.RequireAuth()) // 会議参加メンバー取得

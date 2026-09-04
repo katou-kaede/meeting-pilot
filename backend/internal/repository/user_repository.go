@@ -14,7 +14,11 @@ import (
 // ============================================
 // 共通エラー
 // ============================================
-var ErrEmailAlreadyExists = errors.New("email already exists")
+var (
+	ErrEmailAlreadyExists = errors.New("email already exists")
+	ErrUserNotFound = errors.New("user not found")
+	ErrUserHasIncompleteMeetings = errors.New("user has incomplete meetings")
+)
 
 // ============================================
 // ユーザー登録
@@ -82,10 +86,7 @@ func CreateUser(
 // ============================================
 // ログイン
 // ============================================
-func GetUserByEmail(
-	db *sql.DB,
-	email string,
-) (*model.User, error) {
+func GetUserByEmail(db *sql.DB, email string) (*model.User, error) {
 	normalizedEmail := strings.ToLower(
 		strings.TrimSpace(email),
 	)
@@ -124,10 +125,7 @@ func GetUserByEmail(
 // ============================================
 // ログイン後の認証ユーザー情報取得
 // ============================================
-func GetUserByID(
-	db *sql.DB,
-	id int64,
-) (*model.User, error) {
+func GetUserByID(db *sql.DB, id int64) (*model.User, error) {
 	var user model.User
 
 	err := db.QueryRow(`
@@ -244,4 +242,89 @@ func SearchUsersForMeeting(
 	}
 
 	return users, nil
+}
+
+// ============================================
+// ユーザー削除
+// ============================================
+func DeactivateUser(db *sql.DB, userID int64) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 対象ユーザーを取得してロック
+	var isActive bool
+
+	err = tx.QueryRow(`
+		SELECT is_active
+		FROM users
+		WHERE id = $1
+		FOR UPDATE
+	`,
+		userID,
+	).Scan(&isActive)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrUserNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if !isActive {
+		return ErrUserNotFound
+	}
+
+	// 主催している未完了会議があるか確認
+	var hasIncompleteMeetings bool
+
+	err = tx.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM meetings
+			WHERE
+				created_by = $1
+				AND status <> 'completed'
+		)
+	`,
+		userID,
+	).Scan(&hasIncompleteMeetings)
+
+	if err != nil {
+		return err
+	}
+
+	if hasIncompleteMeetings {
+		return ErrUserHasIncompleteMeetings
+	}
+
+	// ユーザーを論理削除
+	result, err := tx.Exec(`
+		UPDATE users
+		SET
+			is_active = FALSE,
+			updated_at = NOW()
+		WHERE
+			id = $1
+			AND is_active = TRUE
+	`,
+		userID,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return ErrUserNotFound
+	}
+
+	return tx.Commit()
 }

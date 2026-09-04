@@ -17,6 +17,7 @@ type AuthContextType = {
     password: string
   ) => Promise<void>;
   logout: () => Promise<void>;
+  deactivateAccount: () => Promise<void>;
   fetchCurrentUser: () => Promise<void>;
 };
 
@@ -105,6 +106,26 @@ export function AuthProvider({ children }: Props) {
     setUser(null);
   };
 
+  const deactivateAccount = async () => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/me`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const data = await response.json();
+
+      throw new Error(
+        data.error || "退会処理に失敗しました"
+      );
+    }
+
+    setUser(null);
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       setLoading(true);
@@ -124,6 +145,7 @@ export function AuthProvider({ children }: Props) {
         loading,
         login,
         logout,
+        deactivateAccount,
         fetchCurrentUser,
       }}
     >

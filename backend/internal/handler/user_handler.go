@@ -273,9 +273,7 @@ func Logout() echo.HandlerFunc {
 // ============================================
 // ユーザー検索
 // ============================================
-func SearchUsersForMeeting(
-	db *sql.DB,
-) echo.HandlerFunc {
+func SearchUsersForMeeting(db *sql.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// ログインユーザーIDを取得
 		userID, err := getAuthenticatedUserID(c)
@@ -340,5 +338,72 @@ func SearchUsersForMeeting(
 		}
 
 		return c.JSON(http.StatusOK, users)
+	}
+}
+
+// ============================================
+// ユーザー削除
+// ============================================
+func DeactivateCurrentUser(db *sql.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userID, err := getAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+
+		err = repository.DeactivateUser(db, userID)
+		if err != nil {
+			switch {
+			case errors.Is(
+				err,
+				repository.ErrUserHasIncompleteMeetings,
+			):
+				return c.JSON(
+					http.StatusConflict,
+					map[string]string{
+						"error": "主催している未完了の会議があります。すべて完了してから退会してください",
+					},
+				)
+
+			case errors.Is(
+				err,
+				repository.ErrUserNotFound,
+			):
+				return c.JSON(
+					http.StatusNotFound,
+					map[string]string{
+						"error": "ユーザーが見つかりません",
+					},
+				)
+			}
+
+			log.Printf(
+				"DeactivateCurrentUser failed user_id=%d err=%v",
+				userID,
+				err,
+			)
+
+			return c.JSON(
+				http.StatusInternalServerError,
+				map[string]string{
+					"error": "退会処理に失敗しました",
+				},
+			)
+		}
+
+		// 認証Cookieを削除
+		cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
+
+		c.SetCookie(&http.Cookie{
+			Name:     "access_token",
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   cookieSecure,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		})
+
+		return c.NoContent(http.StatusNoContent)
 	}
 }
