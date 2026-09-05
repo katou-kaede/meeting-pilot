@@ -484,10 +484,13 @@ npm run test:run
   - go build ./...
 - ~~API・WebSocket URLの環境変数化~~
 - ~~ユーザー削除~~
-- デプロイ
+- ~~デプロイ~~
 
 - WebSocket切断時の自動再接続
 - メールアドレス・パスワード再設定
 - 手動の総合動作確認
 - 楽観ロックによる同時更新対策
 - CD設定
+
+- favicon
+- OGP画像

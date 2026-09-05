@@ -26,8 +26,8 @@ func GenerateToken(userID int64) (string, error) {
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt: jwt.NewNumericDate(now), // 発行日時
-			ExpiresAt: jwt.NewNumericDate( // 有効期限(1時間)
-				now.Add(time.Hour),
+			ExpiresAt: jwt.NewNumericDate( // 有効期限(24時間)
+				now.Add(24 * time.Hour),
 			),
 		},
 	}

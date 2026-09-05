@@ -184,7 +184,7 @@ func Login(db *sql.DB) echo.HandlerFunc {
 			HttpOnly: true,
 			Secure:   cookieSecure, // 本番のHTTPS環境ではtrue(そのCookieをHTTPS通信のときだけ送信するか)
 			SameSite: sameSite,
-			MaxAge:   60 * 60, // 1時間
+			MaxAge:   60 * 60 * 24, // 24時間
 		})
 
 		return c.JSON(
