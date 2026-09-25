@@ -6,13 +6,13 @@
 
 ## デモ・スクリーンショット
 
-> 公開URLや画像は、デプロイ後に追加予定です。
+https://meeting-pilot.onrender.com/
 
-<!--
-例:
+
 ![会議一覧](./docs/images/meeting-list.png)
+
 ![会議セッション](./docs/images/meeting-session.png)
--->
+
 
 ## 主な機能
 
